@@ -191,13 +191,23 @@ describe("remote hand-written MML", () => {
     expect(client.sendTemplate).not.toHaveBeenCalled();
   });
 
-  it("leaves MML alone over stdio", async () => {
+  it("leaves non-file MML alone over stdio", async () => {
+    const { server, client } = setup(false);
+    const result = await tool(server, "send_email").handler(
+      { template: "To: x@example.com\n\n<#part type=text/html><b>hi</b><#/part>", confirm: true },
+      {} as any,
+    );
+    expect(result.isError).toBeUndefined();
+    expect(client.sendTemplate).toHaveBeenCalled();
+  });
+
+  it("refuses file parts over stdio too", async () => {
     const { server, client } = setup(false);
     const result = await tool(server, "send_email").handler(
       { template: `To: x@example.com\n\n${part}`, confirm: true },
       {} as any,
     );
-    expect(result.isError).toBeUndefined();
-    expect(client.sendTemplate).toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(client.sendTemplate).not.toHaveBeenCalled();
   });
 });
