@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- **Streamable HTTP transport** (`himalaya-mcp serve`, or `node dist/index.js --http`). Remote clients such as Composio connect to `/mcp` with `Authorization: Bearer <token>`. `MCP_BEARER_TOKEN` is required, compared in constant time, and removed from the environment before himalaya runs. The listener defaults to loopback and JSON responses. Stdio remains the default for local plugins.
+- **Remote host-file limits.** Over HTTP, `create_action_item` refuses `destination`, and `send_email` / `compose_email` attach only `download_attachment` files and reject MML `filename=` parts, so a token holder or a prompt-injected agent cannot write or mail out arbitrary host files.
+
 ## [2.1.2] - 2026-08-17
 
 CI and build reliability. No runtime behavior changes — `src/cli/doctor.ts` is a maintainer

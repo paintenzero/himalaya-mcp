@@ -13,6 +13,7 @@ Privacy-first email for Claude -- MCP server and Claude Code plugin (`himalaya`)
 - **Safe subprocess**: uses `execFile` (no shell injection)
 - **Two-phase send**: `send_email` returns preview first, requires explicit `confirm=true`
 - **Env-based config**: `HIMALAYA_BINARY`, `HIMALAYA_ACCOUNT`, `HIMALAYA_FOLDER`, `HIMALAYA_TIMEOUT`
+- **Remote MCP**: `himalaya-mcp serve` speaks Streamable HTTP behind a bearer token so Composio can connect. Local clients stay on stdio.
 
 ## Install
 
@@ -64,6 +65,20 @@ ln -s ~/projects/dev-tools/himalaya-mcp ~/.claude/plugins/himalaya-mcp
 himalaya-mcp doctor    # Verify installation
 ```
 
+## Remote MCP (Composio)
+
+```bash
+export MCP_BEARER_TOKEN="$(openssl rand -hex 32)"
+himalaya-mcp serve
+```
+
+The process listens on `http://127.0.0.1:8080/mcp`. Put HTTPS in front of it (Caddy, nginx, or a tunnel), then register that public URL in Composio as a custom MCP server with API-key auth:
+
+- Header: `Authorization: Bearer {{generic_api_key}}`
+- Connected-account API key: the same value as `MCP_BEARER_TOKEN`
+
+`--host 0.0.0.0` listens beyond loopback. The token is required on every MCP request. See `himalaya-mcp serve --help`.
+
 ## Prerequisites
 
 - [himalaya CLI](https://github.com/pimalaya/himalaya) configured with at least one email account in `~/.config/himalaya/config.toml`
@@ -72,7 +87,7 @@ himalaya-mcp doctor    # Verify installation
 ## Testing
 
 ```bash
-npm test              # 718 tests across 41 files (vitest)
+npm test              # 748 tests across 44 files (vitest)
 ```
 
 | Category | Tests | Coverage |

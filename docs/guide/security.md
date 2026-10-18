@@ -31,6 +31,17 @@ flowchart LR
 | Prompt injection sending email | Two-phase safety gate requires explicit `confirm=true` — Claude cannot unilaterally send |
 | Prompt injection deleting data | No delete operations exist — only flag and move |
 | Man-in-the-middle on IMAP/SMTP | himalaya CLI enforces TLS by default; configurable via `--ssl` flags |
+| Unauthorized remote MCP calls | `himalaya-mcp serve` rejects every MCP request that lacks a matching `Authorization: Bearer` token. The token is compared in constant time and is stripped from the environment before himalaya runs. |
+
+### Network listener
+
+`himalaya-mcp serve` exposes the same tools over Streamable HTTP so a remote client such as Composio can connect. Stdio (the Claude plugin and Desktop extension) does not open a port.
+
+The listener defaults to `127.0.0.1`. Email content is then reachable by anything that can open that port and present the bearer token. Put TLS in front before registering the URL with Composio. Do not set `MCP_TRANSPORT=http` on the local plugin: that switches the plugin process off stdio.
+
+Over HTTP the tools cannot touch arbitrary host files. `create_action_item` refuses `destination`. `send_email` and `compose_email` attach only files that `download_attachment` saved, and they reject hand-written MML parts with `filename=`. Stdio keeps the full local behavior.
+
+`GET /health` and `GET /` answer without a token and return no mailbox data. IMAP and SMTP passwords still stay in the system keyring; the HTTP token is a separate shared secret.
 
 ### What himalaya-mcp does NOT protect against
 
@@ -39,6 +50,7 @@ flowchart LR
 | Compromised himalaya binary | If an attacker replaces the himalaya binary, they control email access. Verify via `brew doctor` or checksum check. |
 | Malicious Claude session | A session with tool-use permission can read/list/search any accessible email. The session-confinement boundary is the MCP layer. |
 | Keychain access | himalaya stores passwords in your system keyring, which protects them from other processes but not from a compromised account. |
+| Stolen HTTP bearer token | Anyone who has the token can call the tools while `serve` is running. Rotate `MCP_BEARER_TOKEN` and restart the process. |
 
 ## Credential Storage
 

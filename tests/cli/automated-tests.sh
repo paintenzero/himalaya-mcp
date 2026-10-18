@@ -329,12 +329,12 @@ else
     assert_fail "package.json == marketplace.json" "$PKG_VERSION != $MARKETPLACE_VERSION"
 fi
 
-# Check src/index.ts VERSION constant
-SRC_VERSION=$(grep 'VERSION' src/index.ts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+# Check src/server.ts VERSION constant
+SRC_VERSION=$(grep 'VERSION' src/server.ts | head -1 | sed 's/.*"\(.*\)".*/\1/')
 if [[ "$PKG_VERSION" == "$SRC_VERSION" ]]; then
-    assert_pass "package.json == src/index.ts VERSION ($PKG_VERSION)"
+    assert_pass "package.json == src/server.ts VERSION ($PKG_VERSION)"
 else
-    assert_fail "package.json == src/index.ts VERSION" "$PKG_VERSION != $SRC_VERSION"
+    assert_fail "package.json == src/server.ts VERSION" "$PKG_VERSION != $SRC_VERSION"
 fi
 
 # ───────────────────────────────────────────────────────────────────────

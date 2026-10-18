@@ -19,7 +19,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TOOL_COUNT } from "../src/index";
+import { TOOL_COUNT } from "../src/server";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -60,7 +60,7 @@ const CANONICAL_TOOLS = [
 describe("tool count sync", () => {
   it("TOOL_COUNT matches expected tool count", () => {
     // When adding/removing tools, update this number AND update:
-    //   - TOOL_COUNT in src/index.ts
+    //   - TOOL_COUNT in src/server.ts
     //   - CANONICAL_TOOLS in this file
     //   - e2e.test.ts tool list
     //   - dogfood.test.ts manifest tool list and count
