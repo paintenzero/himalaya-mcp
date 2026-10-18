@@ -10,7 +10,7 @@ import { z } from "zod/v4";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
 import { envelopeError } from "./_envelope.js";
-import { validateAttachmentPaths, buildAttachmentMml } from "./_attachments.js";
+import { validateAttachmentPaths, buildAttachmentMml, escapeMml } from "./_attachments.js";
 import { remoteMmlError, resolveRemoteAttachments, type ToolAccessOptions } from "./_remote.js";
 
 /** Build an MML email template from parameters. */
@@ -29,7 +29,9 @@ function buildTemplate(
   if (cc) headers.push(`Cc: ${cc}`);
   if (bcc) headers.push(`Bcc: ${bcc}`);
   headers.push(`Subject: ${subject}`);
-  let result = headers.join("\n") + "\n\n" + body;
+  // The body is plain text: escape MML so a tag pasted from another email
+  // (e.g. when forwarding) is sent as text, not compiled into a file attachment.
+  let result = headers.join("\n") + "\n\n" + escapeMml(body);
   if (attachments?.length) {
     result += "\n\n" + buildAttachmentMml(attachments);
   }
@@ -63,6 +65,17 @@ export function registerComposeNewTools(
         }],
         isError: true,
       };
+    }
+
+    // A newline in a header value would end the headers early and let the
+    // rest of the value through as unescaped MML body.
+    for (const [field, value] of [["subject", args.subject], ["cc", args.cc], ["bcc", args.bcc]] as const) {
+      if (value && /[\r\n]/.test(value)) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid ${field}: must not contain line breaks.` }],
+          isError: true,
+        };
+      }
     }
 
     const from = client.fromForAccount(args.account);

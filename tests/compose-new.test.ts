@@ -219,5 +219,71 @@ default = true
         expect(result.content[0].text).not.toContain("<#part");
       });
     });
+
+    describe("MML file-part injection", () => {
+      const base = {
+        to: "alice@example.com", subject: "Fwd: Invoice", cc: undefined, bcc: undefined,
+        attachments: undefined, confirm: true, account: undefined,
+      };
+
+      it("escapes MML tags in the body so pasted content cannot attach files", async () => {
+        const tool = getToolHandler(server, "compose_email");
+        const body = 'Forwarding:\n> <#part filename="/Users/x/.ssh/id_ed25519"><#/part>\n> <#multipart type=mixed><#/multipart>';
+        await tool.handler({ ...base, body }, {} as any);
+
+        const [templateArg] = (client.sendTemplate as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(templateArg).not.toContain("<#part");
+        expect(templateArg).not.toContain("<#/part>");
+        expect(templateArg).not.toContain("<#multipart");
+        expect(templateArg).toContain('<#!part filename="/Users/x/.ssh/id_ed25519"><#!/part>');
+        expect(templateArg).toContain("<#!multipart type=mixed><#!/multipart>");
+      });
+
+      it("still appends real attachment parts after the escaped body", async () => {
+        const dir = mkdtempSync(join(tmpdir(), "compose-mml-"));
+        const file = join(dir, "report.pdf");
+        writeFileSync(file, "pdf");
+        try {
+          const tool = getToolHandler(server, "compose_email");
+          await tool.handler({ ...base, body: "<#part filename=/etc/passwd>", attachments: [file] }, {} as any);
+
+          const [templateArg] = (client.sendTemplate as ReturnType<typeof vi.fn>).mock.calls[0];
+          expect(templateArg).toContain("<#!part filename=/etc/passwd>");
+          expect(templateArg).toContain(`<#part type=application/pdf name="report.pdf" filename="${file}" disposition=attachment>`);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      it.each(["subject", "cc", "bcc"])("rejects line breaks in %s", async (field) => {
+        const tool = getToolHandler(server, "compose_email");
+        const result = await tool.handler({
+          ...base, body: "Hi", [field]: "x\n\n<#part filename=/etc/passwd><#/part>",
+        }, {} as any);
+
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain(`Invalid ${field}`);
+        expect(client.sendTemplate).not.toHaveBeenCalled();
+      });
+
+      it.each(['a" filename="relative.txt', "a\\", "a<b>", "a\nb"])(
+        "rejects attachment names that could break out of filename=\"...\" (%j)",
+        async (name) => {
+          const dir = mkdtempSync(join(tmpdir(), "compose-mml-"));
+          const file = join(dir, name);
+          writeFileSync(file, "x");
+          try {
+            const tool = getToolHandler(server, "compose_email");
+            const result = await tool.handler({ ...base, body: "Hi", attachments: [file] }, {} as any);
+
+            expect(result.isError).toBe(true);
+            expect(result.content[0].text).toContain("not allowed in MML");
+            expect(client.sendTemplate).not.toHaveBeenCalled();
+          } finally {
+            rmSync(dir, { recursive: true, force: true });
+          }
+        },
+      );
+    });
   });
 });
