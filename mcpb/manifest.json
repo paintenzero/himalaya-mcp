@@ -107,7 +107,7 @@
     },
     {
       "name": "delete_email",
-      "description": "Trash an email. Moves it to the trash mailbox, or expunges it when it is already in trash. folder is the mailbox that currently holds the message (not the trash folder) and is passed to himalaya with the id."
+      "description": "Trash an email. SAFETY: requires confirm=true to actually delete; without it, returns a preview warning. Moves it to the trash mailbox, or expunges it when it is already in trash. folder is the mailbox that currently holds the message (not the trash folder) and is passed to himalaya with the id."
     },
     {
       "name": "draft_reply",

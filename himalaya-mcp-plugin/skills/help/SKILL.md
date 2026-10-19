@@ -167,7 +167,9 @@ Display all 30 tools grouped by category:
 |                                                           |
 |   delete_email                                            |
 |     Trash a message (expunge only if already in trash)    |
-|     Params: id, folder? (current mailbox), account?       |
+|     Params: id, folder? (current mailbox), confirm,       |
+|             account?                                      |
+|     Safety: confirm=true required (preview without it)    |
 |                                                           |
 | SNOOZE                                                    |
 |                                                           |
@@ -418,7 +420,7 @@ One-line cheat sheet:
 | delete_folder         | Delete folder (confirm=true)      |
 | flag_email            | Star, mark read, etc.             |
 | move_email            | Archive, trash, move to folder    |
-| delete_email          | Trash a message (pass its mailbox)|
+| delete_email          | Trash a message (confirm=true)    |
 | compose_email         | Compose new email (confirm=true)  |
 | draft_reply           | Generate reply template           |
 | send_email            | Send (requires confirm=true)      |

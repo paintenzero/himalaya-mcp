@@ -339,7 +339,7 @@ Move an email to a different folder.
 
 #### `delete_email`
 
-Move an email to trash. If it is already in trash, himalaya expunges it. On himalaya 2.0, which has no `message delete` command, the message is moved to the provider trash folder instead.
+Move an email to trash. If it is already in trash, himalaya expunges it permanently. **Safety gate:** without `confirm=true` this only returns a preview warning; nothing is deleted. On himalaya 2.0, which has no `message delete` command, the message is moved to the provider trash folder instead.
 
 `folder` is the mailbox that currently holds the message, not the trash folder. It is passed through to himalaya, including when it is INBOX.
 
@@ -347,16 +347,18 @@ Move an email to trash. If it is already in trash, himalaya expunges it. On hima
 |-----------|------|----------|---------|-------------|
 | `id` | string | **Yes** | — | Email message ID |
 | `folder` | string | No | `INBOX` | Mailbox that currently holds the message |
+| `confirm` | boolean | No | `false` | Set to `true` to actually delete. Without it, only a preview is returned |
 | `account` | string | No | default | Account name |
 
 **Examples:**
 
 ```
 "Delete email 10"
-→ delete_email(id: "10")
+→ delete_email(id: "10")                  # preview only
+→ delete_email(id: "10", confirm: true)   # after the user approves
 
 "Delete email 42 from Archive"
-→ delete_email(id: "42", folder: "Archive")
+→ delete_email(id: "42", folder: "Archive", confirm: true)
 ```
 
 **Related:** [move_email](#move_email), [flag_email](#flag_email)

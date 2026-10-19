@@ -50,7 +50,7 @@ Perform batch operations on multiple emails: flag, unflag, move, archive.
 
 - Require explicit confirmation for operations on more than 5 emails
 - Always show what will happen before executing bulk moves
-- `delete_email` moves a message to trash and expunges it only when it is already there. Pass `folder` as the mailbox the message is in now.
+- `delete_email` moves a message to trash and expunges it only when it is already there. Pass `folder` as the mailbox the message is in now. Call it without `confirm` first, show the user the preview, and pass `confirm=true` only after they approve.
 - If `all-unread` is used, first call `list_emails` to count and show the scope
 
 ## MCP Tools Used

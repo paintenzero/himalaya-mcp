@@ -35,7 +35,7 @@ render_email        Read as clean markdown
 flag_email          Add/remove flags (Seen, Flagged, etc.)
 get_unread_count    Get unread count in folder
 move_email          Move to another folder
-delete_email        Trash a message (pass its current mailbox)
+delete_email        Trash a message (confirm=true to delete)
 compose_email       Compose + send new email (safety gate)
 draft_reply         Generate reply draft (never sends)
 send_email          Send template (confirm=true required)

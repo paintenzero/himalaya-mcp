@@ -229,7 +229,7 @@ Example with env vars:
 |------|-------------|----------------|
 | `flag_email` | Add/remove flags (Seen, Flagged, Answered, etc.) | `id`, `flags`, `action` ("add"/"remove") |
 | `move_email` | Move to another folder | `id`, `target_folder` |
-| `delete_email` | Trash a message (expunges if already in trash) | `id`, `folder` |
+| `delete_email` | Trash a message with safety gate (expunges if already in trash) | `id`, `folder`, `confirm` (must be `true` to delete) |
 
 ### Composing
 

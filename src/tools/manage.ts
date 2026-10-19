@@ -1,11 +1,18 @@
 /**
- * MCP tools for managing emails: flagging and moving.
+ * MCP tools for managing emails: flagging, moving, and deleting.
+ *
+ * delete_email uses the same two-phase safety gate as delete_folder:
+ * without confirm=true it only returns a preview warning.
  */
 
 import { z } from "zod/v4";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
 import { envelopeError } from "./_envelope.js";
+import { getTrashFolder } from "../himalaya/trash.js";
+
+/** Mailbox names that are the trash, where delete expunges instead of moving. */
+const TRASH_NAME_RE = /(^|\/)(trash|bin|deleted items|deleted messages)$/i;
 
 export function registerManageTools(server: McpServer, client: HimalayaClient) {
   server.registerTool("flag_email", {
@@ -55,13 +62,40 @@ export function registerManageTools(server: McpServer, client: HimalayaClient) {
   });
 
   server.registerTool("delete_email", {
-    description: "Trash an email. Moves it to the trash mailbox, or expunges it when it is already in trash. folder is the mailbox that currently holds the message (not the trash folder) and is passed to himalaya with the id. On himalaya 2.0, which has no message delete command, this moves the message to the provider trash folder instead.",
+    description: "Trash an email. SAFETY: requires confirm=true to actually delete. Without confirm, returns a preview warning. Moves the message to the trash mailbox, or permanently expunges it when it is already in trash. folder is the mailbox that currently holds the message (not the trash folder) and is passed to himalaya with the id. On himalaya 2.0, which has no message delete command, this moves the message to the provider trash folder instead. Always show the user the preview and get their approval before calling with confirm=true.",
     inputSchema: {
       id: z.string().describe("Email message ID"),
       folder: z.string().optional().describe("Mailbox that currently holds the message (default: INBOX). Always passed to himalaya."),
+      confirm: z.boolean().optional().describe("Set to true to actually delete. Without this, only shows a preview warning."),
       account: z.string().optional().describe("Account name (uses default if omitted)"),
     },
   }, async (args) => {
+    // Safety gate: without confirm=true, just show warning
+    if (!args.confirm) {
+      const mailbox = args.folder || "INBOX";
+      const inTrash = TRASH_NAME_RE.test(mailbox) || mailbox === getTrashFolder(args.account);
+      return {
+        content: [{
+          type: "text" as const,
+          text: [
+            "--- DELETE EMAIL PREVIEW ---",
+            "",
+            `Email to delete: ${args.id}`,
+            `Mailbox: ${mailbox}`,
+            "",
+            inTrash
+              ? "WARNING: This mailbox is the trash. Deleting here permanently expunges the email. It cannot be recovered."
+              : "The email moves to the trash mailbox. If this mailbox is already the trash, it is permanently expunged instead.",
+            "",
+            "--- END PREVIEW ---",
+            "",
+            "This email has NOT been deleted. To delete, call delete_email again with confirm=true.",
+            "Ask the user to confirm before deleting.",
+          ].join("\n"),
+        }],
+      };
+    }
+
     try {
       await client.deleteMessage(args.id, args.folder, args.account);
       const from = args.folder ? ` from ${args.folder}` : "";

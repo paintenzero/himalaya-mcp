@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { promisify } from "node:util";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { HimalayaClient } from "../src/himalaya/client.js";
+import { registerManageTools } from "../src/tools/manage.js";
 
 // Mock child_process (same pattern as client.test.ts)
 vi.mock("node:child_process", async () => {
@@ -197,5 +199,52 @@ describe("Manage tools — client methods", () => {
         "message", "delete", "--folder", "Sent Items", "--output", "json", "42",
       ]);
     });
+  });
+});
+
+describe("delete_email tool — safety gate", () => {
+  let client: HimalayaClient;
+  let handler: (args: Record<string, unknown>) => Promise<any>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    client = new HimalayaClient();
+    vi.spyOn(client, "deleteMessage").mockResolvedValue("{}");
+    const server = new McpServer({ name: "test", version: "0.0.1" });
+    registerManageTools(server, client);
+    const tool = (server as any)._registeredTools["delete_email"];
+    handler = (args) => tool.handler(args, {} as any);
+  });
+
+  it("returns a preview and does not delete without confirm", async () => {
+    const result = await handler({ id: "42", folder: "Archive" });
+    const text = result.content[0].text;
+    expect(text).toContain("DELETE EMAIL PREVIEW");
+    expect(text).toContain("Mailbox: Archive");
+    expect(text).toContain("NOT been deleted");
+    expect(text).toContain("confirm=true");
+    expect(client.deleteMessage).not.toHaveBeenCalled();
+  });
+
+  it("treats confirm=false like no confirm", async () => {
+    await handler({ id: "42", confirm: false });
+    expect(client.deleteMessage).not.toHaveBeenCalled();
+  });
+
+  it("warns that deleting from the trash is permanent", async () => {
+    for (const folder of ["Trash", "[Gmail]/Trash", "Deleted Items"]) {
+      const result = await handler({ id: "42", folder });
+      expect(result.content[0].text).toMatch(/permanently expunges the email\. It cannot be recovered/);
+    }
+    const inbox = await handler({ id: "42" });
+    expect(inbox.content[0].text).toContain("Mailbox: INBOX");
+    expect(inbox.content[0].text).not.toMatch(/cannot be recovered/);
+    expect(client.deleteMessage).not.toHaveBeenCalled();
+  });
+
+  it("deletes only with confirm=true", async () => {
+    const result = await handler({ id: "42", folder: "Archive", account: "work", confirm: true });
+    expect(client.deleteMessage).toHaveBeenCalledWith("42", "Archive", "work");
+    expect(result.content[0].text).toBe("Deleted email 42 from Archive");
   });
 });
