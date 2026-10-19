@@ -50,13 +50,14 @@ Perform batch operations on multiple emails: flag, unflag, move, archive.
 
 - Require explicit confirmation for operations on more than 5 emails
 - Always show what will happen before executing bulk moves
-- Never delete emails — only move to Trash (user can recover)
+- `delete_email` moves a message to trash and expunges it only when it is already there. Pass `folder` as the mailbox the message is in now.
 - If `all-unread` is used, first call `list_emails` to count and show the scope
 
 ## MCP Tools Used
 
 - `flag_email` — for flag/unflag operations (action: `add` or `remove`, flags: `["Flagged"]`)
-- `move_email` — for move/archive operations
+- `move_email` — for move/archive operations. Pass `target_folder` as the destination and `folder` as the mailbox the message is in now
+- `delete_email` — trash a message. `folder` is the current mailbox, not the trash folder
 - `list_emails` — to resolve `all-unread` targets
 - `search_emails` — to resolve filter-based targets
 

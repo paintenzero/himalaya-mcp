@@ -37,7 +37,7 @@ Autonomous agent for email triage and management via himalaya MCP.
 ## Safety Rules
 
 - NEVER send emails without explicit user confirmation
-- NEVER delete emails (only flag/move)
+- delete_email moves a message to trash and expunges it only when it is already in trash. Pass folder as the mailbox the message is in now.
 - NEVER access emails from other accounts without permission
 - Always show draft before sending
 - Always ask before bulk operations (>5 emails)

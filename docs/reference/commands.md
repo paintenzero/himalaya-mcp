@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-Complete reference for all 29 MCP tools, 7 prompts, and 3 resources.
+Complete reference for all 30 MCP tools, 7 prompts, and 3 resources.
 
 !!! tip "See also"
     **[Tutorials](../tutorials/index.md)** for step-by-step walkthroughs | **[Workflows](../guide/workflows.md)** for common email patterns
@@ -273,7 +273,7 @@ Add or remove flags on an email.
 | `Seen` | Email has been read |
 | `Flagged` | Starred / important |
 | `Answered` | Has been replied to |
-| `Deleted` | Marked for deletion |
+| `Deleted` | Marked for deletion on himalaya v1. v2 has no Deleted flag — use `delete_email` |
 | `Draft` | Is a draft message |
 
 **Examples:**
@@ -333,7 +333,33 @@ Move an email to a different folder.
 → move_email(id: "42", target_folder: "Projects/Launch")
 ```
 
-**Related:** [flag_email](#flag_email), [triage_inbox](#triage_inbox-prompt)
+**Related:** [flag_email](#flag_email), [delete_email](#delete_email), [triage_inbox](#triage_inbox-prompt)
+
+---
+
+#### `delete_email`
+
+Move an email to trash. If it is already in trash, himalaya expunges it. On himalaya 2.0, which has no `message delete` command, the message is moved to the provider trash folder instead.
+
+`folder` is the mailbox that currently holds the message, not the trash folder. It is passed through to himalaya, including when it is INBOX.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `id` | string | **Yes** | — | Email message ID |
+| `folder` | string | No | `INBOX` | Mailbox that currently holds the message |
+| `account` | string | No | default | Account name |
+
+**Examples:**
+
+```
+"Delete email 10"
+→ delete_email(id: "10")
+
+"Delete email 42 from Archive"
+→ delete_email(id: "42", folder: "Archive")
+```
+
+**Related:** [move_email](#move_email), [flag_email](#flag_email)
 
 ---
 

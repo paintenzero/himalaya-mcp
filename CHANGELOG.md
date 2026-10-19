@@ -6,8 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Move, flag, and read-by-id now pass the mailbox himalaya v2 actually reads.** `move_email` sends the destination as `--to` and the source as `--from` (a positional folder was parsed as a message id, and `--mailbox` is not a move flag). Flag changes use repeated `--flag`. Reads pass `--mailbox` even for INBOX, so an id is not fetched from the inbox alias. `read_email_raw` on v2 uses `message read --raw` and passes that same mailbox.
+
 ### Added
 
+- **`delete_email` tool** (30 tools). Trashes a message, and expunges it when it is already in trash. Runs `message delete --mailbox` on himalaya 2.1+ and falls back to a move into the provider trash folder on 2.0. Pass `folder` as the mailbox that holds the message now. `Deleted` is no longer accepted as a flag on himalaya v2.
 - **Streamable HTTP transport** (`himalaya-mcp serve`, or `node dist/index.js --http`). Remote clients such as Composio connect to `/mcp` with `Authorization: Bearer <token>`. `MCP_BEARER_TOKEN` is required, compared in constant time, and removed from the environment before himalaya runs. The listener defaults to loopback and JSON responses. Stdio remains the default for local plugins.
 - **Remote host-file limits.** Over HTTP, `create_action_item` refuses `destination`, and `send_email` / `compose_email` attach only `download_attachment` files and reject MML `filename=` parts, so a token holder or a prompt-injected agent cannot write or mail out arbitrary host files.
 

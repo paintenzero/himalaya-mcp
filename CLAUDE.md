@@ -8,7 +8,7 @@
 - **Backend:** himalaya CLI (subprocess with JSON output)
 - **Platforms:** Claude Code (plugin), Claude Desktop/Cowork (MCP server)
 - **Version:** 2.1.2
-- **Current Phase:** All phases complete (29 tools, 7 prompts, 3 resources, 16 skills, 748 tests)
+- **Current Phase:** All phases complete (30 tools, 7 prompts, 3 resources, 16 skills, 748 tests)
 
 ### What It Does
 
@@ -51,7 +51,7 @@ himalaya-mcp/
 │   │   ├── render.ts            # render_email
 │   │   ├── unread.ts            # get_unread_count
 │   │   ├── list-starred.ts      # list_starred
-│   │   ├── manage.ts            # flag_email, move_email
+│   │   ├── manage.ts            # flag_email, move_email, delete_email
 │   │   ├── compose.ts           # draft_reply, send_email (two-phase safety gate)
 │   │   ├── compose-new.ts       # compose_email (new messages, safety gate)
 │   │   ├── folders.ts           # list_folders, create_folder, delete_folder
@@ -138,7 +138,7 @@ himalaya-mcp/
 └── tsconfig.json
 ```
 
-### Implemented MCP Tools (29)
+### Implemented MCP Tools (30)
 
 | Tool | Description |
 |------|-------------|
@@ -151,6 +151,7 @@ himalaya-mcp/
 | `flag_email` | Add/remove flags (Seen, Flagged, Answered, etc.) |
 | `get_unread_count` | Get unread email count for a folder |
 | `move_email` | Move email to target folder |
+| `delete_email` | Trash a message (expunges if already in trash) |
 | `draft_reply` | Generate reply template with DRAFT markers |
 | `send_email` | Send email with two-phase safety gate (preview then confirm) |
 | `snooze_email` | Snooze email until specified time |

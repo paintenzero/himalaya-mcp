@@ -18,7 +18,7 @@ Single entry point for discovering all email commands, tools, prompts, and workf
 
 ```
 /himalaya:help                  # Overview of all capabilities
-/himalaya:help tools            # All 29 MCP tools with usage
+/himalaya:help tools            # All 30 MCP tools with usage
 /himalaya:help prompts          # All 7 MCP prompts
 /himalaya:help resources        # All 3 MCP resources
 /himalaya:help <command>        # Detail for a specific tool (e.g. "search_emails")
@@ -34,18 +34,18 @@ Display the hub overview:
 +-----------------------------------------------------------+
 | EMAIL HELP HUB                                            |
 +-----------------------------------------------------------+
-| Privacy-first email for Claude — 29 tools, 7 prompts,     |
+| Privacy-first email for Claude — 30 tools, 7 prompts,     |
 | 3 resources, 16 skills, 2 hooks                           |
 +===========================================================+
 |                                                           |
-| TOOLS (29)                                                |
+| TOOLS (30)                                                |
 |   Inbox ....... list_emails, search_emails                |
 |   Read ........ read_email, read_email_html,              |
 |                 read_email_raw, render_email               |
 |   Info ........ get_unread_count, list_starred            |
 |   Folders ..... list_folders, create_folder,              |
 |                 delete_folder                              |
-|   Manage ...... flag_email, move_email                    |
+|   Manage ...... flag_email, move_email, delete_email      |
 |   Snooze ...... snooze_email, list_snoozed_emails         |
 |   Compose ..... compose_email, draft_reply, send_email    |
 |   Attachments . list_attachments, download_attachment      |
@@ -86,7 +86,7 @@ Display the hub overview:
 
 ## When Invoked with "tools"
 
-Display all 29 tools grouped by category:
+Display all 30 tools grouped by category:
 
 ```
 +-----------------------------------------------------------+
@@ -155,15 +155,19 @@ Display all 29 tools grouped by category:
 | MANAGING                                                  |
 |                                                           |
 |   flag_email                                              |
-|     Add/remove flags: Seen, Flagged, Answered,            |
-|     Deleted, Draft                                        |
+|     Add/remove flags: Seen, Flagged, Answered, Draft      |
 |     Params: id, flags[], action (add/remove),             |
 |             folder?, account?                             |
+|     Deleted is not a v2 flag — use delete_email           |
 |                                                           |
 |   move_email                                              |
 |     Move to folder: Archive, Trash, Spam, etc.            |
 |     Params: id, target_folder (required),                 |
-|             folder?, account?                             |
+|             folder? (current mailbox), account?           |
+|                                                           |
+|   delete_email                                            |
+|     Trash a message (expunge only if already in trash)    |
+|     Params: id, folder? (current mailbox), account?       |
 |                                                           |
 | SNOOZE                                                    |
 |                                                           |
@@ -414,6 +418,7 @@ One-line cheat sheet:
 | delete_folder         | Delete folder (confirm=true)      |
 | flag_email            | Star, mark read, etc.             |
 | move_email            | Archive, trash, move to folder    |
+| delete_email          | Trash a message (pass its mailbox)|
 | compose_email         | Compose new email (confirm=true)  |
 | draft_reply           | Generate reply template           |
 | send_email            | Send (requires confirm=true)      |

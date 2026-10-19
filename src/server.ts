@@ -38,7 +38,7 @@ import type { ToolAccessOptions } from "./tools/_remote.js";
 
 export const VERSION = "2.1.2";
 export const NAME = "himalaya-mcp";
-export const TOOL_COUNT = 29;
+export const TOOL_COUNT = 30;
 
 export interface McpServerOptions extends ToolAccessOptions {
   client?: HimalayaClient;

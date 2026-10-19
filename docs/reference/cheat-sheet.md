@@ -23,7 +23,7 @@ himalaya-mcp doctor                                   # Verify everything
 | `himalaya-mcp --help` | Show help |
 | `himalaya-mcp --version` | Show version |
 
-## MCP Tools (29)
+## MCP Tools (30)
 
 ```
 list_emails         List inbox/folder emails
@@ -35,6 +35,7 @@ render_email        Read as clean markdown
 flag_email          Add/remove flags (Seen, Flagged, etc.)
 get_unread_count    Get unread count in folder
 move_email          Move to another folder
+delete_email        Trash a message (pass its current mailbox)
 compose_email       Compose + send new email (safety gate)
 draft_reply         Generate reply draft (never sends)
 send_email          Send template (confirm=true required)

@@ -18,7 +18,7 @@ src/                        # TypeScript source
   index.ts                  # MCP server entry point
   config.ts                 # Env-based configuration
   himalaya/                 # Subprocess wrapper + parsers
-  tools/                    # 29 MCP tool handlers
+  tools/                    # 30 MCP tool handlers
   prompts/                  # 7 MCP prompt handlers
   resources/                # 3 MCP resource handlers
   adapters/                 # clipboard, calendar

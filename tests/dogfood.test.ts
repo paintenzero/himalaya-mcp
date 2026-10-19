@@ -1710,8 +1710,8 @@ describe("Packaging: mcpb/manifest.json", () => {
     expect(manifest.compatibility.runtimes.node).toBe(">=22.0.0");
   });
 
-  it("lists exactly 29 tools", () => {
-    expect(manifest.tools).toHaveLength(29);
+  it("lists exactly 30 tools", () => {
+    expect(manifest.tools).toHaveLength(30);
   });
 
   it("lists exactly 7 prompts", () => {
@@ -1742,6 +1742,7 @@ describe("Packaging: mcpb/manifest.json", () => {
       "create_calendar_event",
       "create_folder",
       "create_reminder",
+      "delete_email",
       "delete_folder",
       "download_attachment",
       "draft_reply",

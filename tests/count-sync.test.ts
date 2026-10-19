@@ -32,6 +32,7 @@ const CANONICAL_TOOLS = [
   "create_calendar_event",
   "create_folder",
   "create_reminder",
+  "delete_email",
   "delete_folder",
   "download_attachment",
   "draft_reply",
@@ -72,7 +73,7 @@ describe("tool count sync", () => {
     //   - docs/reference/commands.md
     //   - docs/reference/cheat-sheet.md
     //   - docs/index.md grid cards
-    expect(TOOL_COUNT).toBe(29);
+    expect(TOOL_COUNT).toBe(30);
     expect(CANONICAL_TOOLS.length).toBe(TOOL_COUNT);
   });
 

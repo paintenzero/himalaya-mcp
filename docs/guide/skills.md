@@ -620,7 +620,7 @@ Help hub for the himalaya plugin. Browse all available tools, prompts, resources
 | Command | Shows |
 |---------|-------|
 | `/himalaya:help` | Overview of all capabilities |
-| `/himalaya:help tools` | All 29 MCP tools with parameters |
+| `/himalaya:help tools` | All 30 MCP tools with parameters |
 | `/himalaya:help prompts` | All 7 MCP prompts |
 | `/himalaya:help resources` | All 3 MCP resources |
 | `/himalaya:help workflows` | Common email workflow patterns |

@@ -198,7 +198,7 @@
   `homebrew-release.yml` was still in Pre-Release Validation at the time of writing.
 - Verification: host vitest 717/717 exit 0 (397s), Docker vitest 717/717 exit 0 (836s), release
   PR #140 8/8 checks, `main` CI 3/3 workflows green on `a7253c4`.
-- All phases complete: 29 MCP tools, 7 prompts, 3 resources, 16 skills
+- All phases complete: 30 MCP tools, 7 prompts, 3 resources, 16 skills
 - Tests: 717 tests across 41 test files. CI and release validation passed, including bundle,
   TypeScript, JSON, plugin, MCPB, and docs checks. The full host baseline is 717/717.
   (Was 719 through v2.1.0; `tests/dogfood.test.ts`'s `Packaging: release includes mcpb` block

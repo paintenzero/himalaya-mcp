@@ -1038,7 +1038,7 @@ The client applies locale fallbacks: `es-UY` -> `es-MX` -> `es-ES` -> `en-US` (d
 }
 ```
 
-### Full-featured: himalaya-mcp (manifest_version 0.3, 29 tools, 7 prompts)
+### Full-featured: himalaya-mcp (manifest_version 0.3, 30 tools, 7 prompts)
 
 ```json
 {
@@ -1066,7 +1066,7 @@ The client applies locale fallbacks: `es-UY` -> `es-MX` -> `es-ES` -> `en-US` (d
     "himalaya_account": { "type": "string", "title": "Default Account", "required": false },
     "himalaya_folder": { "type": "string", "title": "Default Folder", "default": "INBOX", "required": false }
   },
-  "tools": [ /* 29 tools */ ],
+  "tools": [ /* 30 tools */ ],
   "prompts": [ /* 7 prompts with arguments and text */ ],
   "compatibility": { "platforms": ["darwin"], "runtimes": { "node": ">=22.0.0" } }
 }

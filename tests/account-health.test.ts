@@ -58,7 +58,7 @@ describe("checkAccountHealth — dual v1/v2 CLI syntax, multi-surface", () => {
     const result = await checkAccountHealth(account);
     expect(result.reachable).toBe(true);
     expect(folderCall()[1]).toEqual(["mailbox", "list", "--account", account, "--json"]);
-    expect(envelopeCall()[1]).toEqual(["envelope", "list", "--page-size", "1", "--account", account, "--json"]);
+    expect(envelopeCall()[1]).toEqual(["envelope", "list", "--mailbox", "INBOX", "--page-size", "1", "--account", account, "--json"]);
   });
 
   it("uses v1 folder/--output json syntax when --version reports v1", async () => {
@@ -67,7 +67,7 @@ describe("checkAccountHealth — dual v1/v2 CLI syntax, multi-surface", () => {
     const result = await checkAccountHealth(account);
     expect(result.reachable).toBe(true);
     expect(folderCall()[1]).toEqual(["folder", "list", "--account", account, "--output", "json"]);
-    expect(envelopeCall()[1]).toEqual(["envelope", "list", "--page-size", "1", "--account", account, "--output", "json"]);
+    expect(envelopeCall()[1]).toEqual(["envelope", "list", "--folder", "INBOX", "--page-size", "1", "--account", account, "--output", "json"]);
   });
 
   it("reports unreachable (fail-closed) when version detection fails", async () => {

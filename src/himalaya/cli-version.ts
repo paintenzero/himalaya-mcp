@@ -27,6 +27,10 @@ const VERSION_PROBE_TIMEOUT_MS = 15_000;
 export interface HimalayaVersion {
   /** Major version number, e.g. 2 for "himalaya v2.0.0 ...". */
   major: number;
+  /** Minor version number, e.g. 2 for "himalaya v2.2.1 ...". */
+  minor: number;
+  /** Patch version number, e.g. 1 for "himalaya v2.2.1 ...". */
+  patch: number;
   /** Raw `--version` stdout, trimmed, for diagnostics/logging. */
   raw: string;
 }
@@ -34,8 +38,24 @@ export interface HimalayaVersion {
 // Matches "himalaya v2.0.0 +gmail ..." (confirmed live format) and a bare
 // "1.1.0"-style form without the "v" prefix -- real v1.x --version output
 // was never independently verified (only v2.0.0 was live-tested), so the
-// "v" is optional rather than assumed present.
-const VERSION_RE = /\bv?(\d+)\.\d+\.\d+\b/;
+// "v" is optional rather than assumed present. Minor and patch matter: v2.0
+// removed `message delete` and renamed move's positional target to `--to`,
+// and v2.1 put `message delete` back.
+const VERSION_RE = /\bv?(\d+)\.(\d+)\.(\d+)\b/;
+
+/** True when `version` is at least major.minor.patch. Missing parts count as 0. */
+export function himalayaAtLeast(
+  version: HimalayaVersion,
+  major: number,
+  minor = 0,
+  patch = 0,
+): boolean {
+  const gotMinor = version.minor ?? 0;
+  const gotPatch = version.patch ?? 0;
+  if (version.major !== major) return version.major > major;
+  if (gotMinor !== minor) return gotMinor > minor;
+  return gotPatch >= patch;
+}
 
 /**
  * Run `<binary> --version` and extract the major version number.
@@ -60,5 +80,10 @@ export async function detectHimalayaVersion(binary: string): Promise<HimalayaVer
     throw versionDetectionError(`unrecognized --version output: "${stdout || "(empty)"}"`);
   }
 
-  return { major: parseInt(match[1], 10), raw: stdout };
+  return {
+    major: parseInt(match[1], 10),
+    minor: parseInt(match[2], 10),
+    patch: parseInt(match[3], 10),
+    raw: stdout,
+  };
 }

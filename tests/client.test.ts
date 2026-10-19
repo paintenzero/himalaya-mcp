@@ -331,16 +331,34 @@ describe("HimalayaClient", () => {
       expect(argv.indexOf("flag")).toBeGreaterThan(argv.indexOf("--json"));
     });
 
-    it("readMessage passes id", async () => {
+    it("readMessage passes id and the mailbox, including the inbox default", async () => {
       setupMock('""');
       const client = new HimalayaClient();
       await client.readMessage("12345");
 
-      expect(mockExecFileAsync).toHaveBeenCalledWith(
-        "himalaya",
-        expect.arrayContaining(["message", "read", "12345"]),
-        expect.any(Object),
-      );
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[])[0] === "message")![1] as string[];
+      expect(argv).toEqual(["message", "read", "--mailbox", "INBOX", "--json", "12345"]);
+    });
+
+    it("readMessage keeps a folder that only casefolds to INBOX", async () => {
+      setupMock('""');
+      const client = new HimalayaClient();
+      await client.readMessage("12345", "Inbox");
+
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[])[0] === "message")![1] as string[];
+      expect(argv).toEqual(["message", "read", "--mailbox", "Inbox", "--json", "12345"]);
+    });
+
+    it("readMessageRaw passes --raw and the mailbox on v2", async () => {
+      setupMock(JSON.stringify("From: a@b\r\n\r\nHi\r\n"));
+      const client = new HimalayaClient();
+      const raw = await client.readMessageRaw("12345", "Archive");
+
+      expect(raw).toBe("From: a@b\r\n\r\nHi\r\n");
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[])[0] === "message")![1] as string[];
+      expect(argv).toEqual([
+        "message", "read", "--raw", "--mailbox", "Archive", "--json", "12345",
+      ]);
     });
 
     it("readMessageHtml uses message export instead of removed --html flag", async () => {

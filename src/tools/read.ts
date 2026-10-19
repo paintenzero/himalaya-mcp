@@ -11,10 +11,10 @@ import { envelopeError } from "./_envelope.js";
 
 export function registerReadTools(server: McpServer, client: HimalayaClient) {
   server.registerTool("read_email", {
-    description: "Read an email message body (plain text). Use the ID from list_emails or search_emails.",
+    description: "Read an email message body (plain text). Use the ID from list_emails or search_emails. Pass folder as the mailbox that listing came from; it is sent to himalaya with the id.",
     inputSchema: {
       id: z.string().describe("Email message ID"),
-      folder: z.string().optional().describe("Folder name (default: INBOX)"),
+      folder: z.string().optional().describe("Mailbox that holds the message (default: INBOX). Always passed to himalaya."),
       account: z.string().optional().describe("Account name (uses default if omitted)"),
     },
   }, async (args) => {
