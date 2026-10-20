@@ -213,7 +213,7 @@ fi
 
 # ───────────────────────────────────────────────────────────────────────
 
-section "5. MCP Server Source (29 tools)"
+section "5. MCP Server Source (30 tools)"
 
 TOOL_FILES=(inbox.ts read.ts manage.ts compose.ts compose-new.ts folders.ts attachments.ts calendar.ts actions.ts)
 for tf in "${TOOL_FILES[@]}"; do
@@ -222,10 +222,10 @@ done
 
 # Count registerTool calls
 TOOL_COUNT=$(grep -r 'registerTool' src/tools/*.ts src/adapters/clipboard.ts 2>/dev/null | wc -l | tr -d ' ')
-if [[ "$TOOL_COUNT" -eq 29 ]]; then
-    assert_pass "29 registerTool calls found"
+if [[ "$TOOL_COUNT" -eq 30 ]]; then
+    assert_pass "30 registerTool calls found"
 else
-    assert_fail "29 registerTool calls found" "Found $TOOL_COUNT"
+    assert_fail "30 registerTool calls found" "Found $TOOL_COUNT"
 fi
 
 # ───────────────────────────────────────────────────────────────────────
@@ -329,12 +329,12 @@ else
     assert_fail "package.json == marketplace.json" "$PKG_VERSION != $MARKETPLACE_VERSION"
 fi
 
-# Check src/index.ts VERSION constant
-SRC_VERSION=$(grep 'VERSION' src/index.ts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+# Check src/server.ts VERSION constant
+SRC_VERSION=$(grep 'VERSION' src/server.ts | head -1 | sed 's/.*"\(.*\)".*/\1/')
 if [[ "$PKG_VERSION" == "$SRC_VERSION" ]]; then
-    assert_pass "package.json == src/index.ts VERSION ($PKG_VERSION)"
+    assert_pass "package.json == src/server.ts VERSION ($PKG_VERSION)"
 else
-    assert_fail "package.json == src/index.ts VERSION" "$PKG_VERSION != $SRC_VERSION"
+    assert_fail "package.json == src/server.ts VERSION" "$PKG_VERSION != $SRC_VERSION"
 fi
 
 # ───────────────────────────────────────────────────────────────────────

@@ -29,8 +29,21 @@ flowchart LR
 | Credential exfiltration | Credentials never enter the AI context — only the CLI binary touches them |
 | Shell injection | All subprocess calls use `execFile` (not `exec` or `shell: true`), preventing argument injection |
 | Prompt injection sending email | Two-phase safety gate requires explicit `confirm=true` — Claude cannot unilaterally send |
-| Prompt injection deleting data | No delete operations exist — only flag and move |
+| Prompt injection deleting data | `delete_email` and `delete_folder` use the same two-phase gate: without `confirm=true` they return a preview warning and delete nothing. Deleting an email from the trash expunges it permanently, and the preview says so. |
 | Man-in-the-middle on IMAP/SMTP | himalaya CLI enforces TLS by default; configurable via `--ssl` flags |
+| Unauthorized remote MCP calls | `himalaya-mcp serve` rejects every MCP request that lacks a matching `Authorization: Bearer` token. The token is compared in constant time and is stripped from the environment before himalaya runs. |
+
+### Network listener
+
+`himalaya-mcp serve` exposes the same tools over Streamable HTTP so a remote client such as Composio can connect. Stdio (the Claude plugin and Desktop extension) does not open a port.
+
+The listener defaults to `127.0.0.1`. Email content is then reachable by anything that can open that port and present the bearer token. Put TLS in front before registering the URL with Composio. Do not set `MCP_TRANSPORT=http` on the local plugin: that switches the plugin process off stdio.
+
+Over HTTP the tools cannot touch arbitrary host files. `create_action_item` refuses `destination`. `send_email` and `compose_email` attach only files that `download_attachment` saved, and they reject hand-written MML parts with `filename=`. Stdio keeps the full local behavior.
+
+The `confirm=true` gates on sending and deleting are a parameter the caller sets, not a human approval. Over HTTP no person reviews each tool call, so a remote agent that reads a prompt-injected email can pass `confirm=true` itself. Give the token only to clients that ask a person before sending or deleting.
+
+`GET /health` and `GET /` answer without a token and return no mailbox data. IMAP and SMTP passwords still stay in the system keyring; the HTTP token is a separate shared secret.
 
 ### What himalaya-mcp does NOT protect against
 
@@ -39,6 +52,7 @@ flowchart LR
 | Compromised himalaya binary | If an attacker replaces the himalaya binary, they control email access. Verify via `brew doctor` or checksum check. |
 | Malicious Claude session | A session with tool-use permission can read/list/search any accessible email. The session-confinement boundary is the MCP layer. |
 | Keychain access | himalaya stores passwords in your system keyring, which protects them from other processes but not from a compromised account. |
+| Stolen HTTP bearer token | Anyone who has the token can call the tools while `serve` is running. Rotate `MCP_BEARER_TOKEN` and restart the process. |
 
 ## Credential Storage
 
@@ -65,6 +79,7 @@ Every destructive or sensitive operation requires explicit user confirmation:
 |------|----------------------|---------------------|
 | `send_email` | Returns preview only | Sends the email |
 | `compose_email` | Returns preview only | Sends the email |
+| `delete_email` | Returns warning | Moves the email to trash, or expunges it if it is already in trash |
 | `delete_folder` | Returns warning | Deletes folder |
 | `create_calendar_event` | Returns preview | Creates in Apple Calendar |
 

@@ -28,6 +28,8 @@ describe("detectHimalayaVersion", () => {
 
     const result = await detectHimalayaVersion("himalaya");
     expect(result.major).toBe(2);
+    expect(result.minor).toBe(0);
+    expect(result.patch).toBe(0);
     expect(result.raw).toContain("v2.0.0");
     expect(mockExecFileAsync).toHaveBeenCalledWith("himalaya", ["--version"], { timeout: 15_000 });
   });
@@ -36,6 +38,17 @@ describe("detectHimalayaVersion", () => {
     mockExecFileAsync.mockResolvedValue({ stdout: "himalaya 1.1.0\n", stderr: "" });
     const result = await detectHimalayaVersion("himalaya");
     expect(result.major).toBe(1);
+    expect(result.minor).toBe(1);
+    expect(result.patch).toBe(0);
+  });
+
+  it("parses himalaya v2.2.1, the generation with message delete and --to", async () => {
+    mockExecFileAsync.mockResolvedValue({
+      stdout: "himalaya v2.2.1 +imap +smtp linux musl x86_64\n",
+      stderr: "",
+    });
+    const result = await detectHimalayaVersion("himalaya");
+    expect(result).toMatchObject({ major: 2, minor: 2, patch: 1 });
   });
 
   it("throws himalaya_version_undetected on empty stdout", async () => {

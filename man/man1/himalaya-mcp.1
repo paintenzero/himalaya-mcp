@@ -57,6 +57,48 @@ and creates default settings.
 .B remove-ext
 Remove the himalaya-mcp Desktop extension directory, settings file,
 and registry entry. Idempotent.
+.SS Network (Streamable HTTP)
+.TP
+.B serve
+Listen for remote MCP clients on Streamable HTTP. Requires a bearer
+token. Local Claude and Codex installs keep using stdio and are unchanged.
+.RS
+.TP
+.B --host \fIaddr\fR
+Bind address. Default
+.BR 127.0.0.1 ,
+or
+.BR MCP_HOST .
+Use
+.B 0.0.0.0
+to accept connections from other machines.
+.TP
+.B --port \fIn\fR
+TCP port. Default 8080, or
+.BR MCP_PORT .
+.TP
+.B --path \fIpath\fR
+MCP endpoint path. Default
+.BR /mcp .
+.TP
+.B --token-file \fIfile\fR
+Read the bearer token from a file instead of the environment.
+.TP
+.B --sse
+Send SSE responses. The default is one JSON body per POST, which remote
+tool proxies accept reliably.
+.RE
+.PP
+Every request to the MCP path must send
+.BR "Authorization: Bearer <token>" .
+.B GET /health
+is unauthenticated and returns process liveness only.
+Composio custom MCP uses API-key auth with header
+.BR "Authorization: Bearer {{generic_api_key}}"
+and
+.B app_url
+set to the public HTTPS URL of this path. Terminate TLS with a reverse
+proxy or tunnel; Composio does not accept a plain HTTP URL.
 .SS Diagnostics
 .TP
 .B doctor
@@ -124,6 +166,45 @@ Default folder (default:
 .TP
 .B HIMALAYA_TIMEOUT
 Command timeout in ms (default: 120000, i.e. 2 min; 0 = unlimited).
+.TP
+.B MCP_BEARER_TOKEN
+Shared secret for
+.BR serve .
+At least 16 characters. Removed from the environment before himalaya is
+spawned. Prefer
+.B MCP_BEARER_TOKEN_FILE
+so the secret is not in the process environment at all.
+.TP
+.B MCP_BEARER_TOKEN_FILE
+File containing the bearer token. Trailing whitespace is stripped.
+.TP
+.B MCP_HOST
+Bind address for
+.BR serve .
+Default
+.BR 127.0.0.1 .
+.TP
+.B MCP_PORT
+Port for
+.BR serve .
+Default 8080.
+.TP
+.B MCP_PATH
+MCP endpoint path. Default
+.BR /mcp .
+.TP
+.B MCP_TRANSPORT
+Set to
+.B http
+to make
+.B node dist/index.js
+listen on HTTP instead of stdio. Do not set this in the Claude plugin
+environment.
+.TP
+.B MCP_HTTP_JSON
+Set to
+.B false
+for SSE POST responses. Default is JSON.
 .SH EXAMPLES
 First-time install:
 .RS
@@ -155,6 +236,14 @@ Uninstall:
 .nf
 himalaya-mcp remove-ext
 himalaya-mcp remove
+.fi
+.RE
+.PP
+Serve MCP for Composio (then publish the URL over HTTPS):
+.RS
+.nf
+export MCP_BEARER_TOKEN="$(openssl rand -hex 32)"
+himalaya-mcp serve --host 127.0.0.1 --port 8080
 .fi
 .RE
 .SH EXIT STATUS

@@ -12,7 +12,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { HimalayaClient } from "../src/himalaya/client.js";
-import { VERSION, NAME } from "../src/index.js";
+import { VERSION, NAME } from "../src/server.js";
 import { registerInboxTools } from "../src/tools/inbox.js";
 import { registerReadTools } from "../src/tools/read.js";
 import { registerManageTools } from "../src/tools/manage.js";
@@ -1171,7 +1171,7 @@ describe("Packaging: version consistency", () => {
     readFileSync(join(PROJECT_ROOT, "himalaya-mcp-plugin", ".claude-plugin", "plugin.json"), "utf-8")
   );
 
-  it("src/index.ts VERSION matches package.json", () => {
+  it("src/server.ts VERSION matches package.json", () => {
     expect(VERSION).toBe(pkgJson.version);
   });
 
@@ -1179,7 +1179,7 @@ describe("Packaging: version consistency", () => {
     expect(pluginJson.version).toBe(pkgJson.version);
   });
 
-  it("src/index.ts NAME is himalaya-mcp (MCP server identity)", () => {
+  it("src/server.ts NAME is himalaya-mcp (MCP server identity)", () => {
     expect(NAME).toBe("himalaya-mcp");
   });
 
@@ -1710,8 +1710,8 @@ describe("Packaging: mcpb/manifest.json", () => {
     expect(manifest.compatibility.runtimes.node).toBe(">=22.0.0");
   });
 
-  it("lists exactly 29 tools", () => {
-    expect(manifest.tools).toHaveLength(29);
+  it("lists exactly 30 tools", () => {
+    expect(manifest.tools).toHaveLength(30);
   });
 
   it("lists exactly 7 prompts", () => {
@@ -1742,6 +1742,7 @@ describe("Packaging: mcpb/manifest.json", () => {
       "create_calendar_event",
       "create_folder",
       "create_reminder",
+      "delete_email",
       "delete_folder",
       "download_attachment",
       "draft_reply",

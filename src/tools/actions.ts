@@ -7,8 +7,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
 import { parseEnvelopes, parseMessageBody } from "../himalaya/parser.js";
 import { envelopeError } from "./_envelope.js";
+import { REMOTE_FILE_WRITE_ERROR, type ToolAccessOptions } from "./_remote.js";
 
-export function registerActionTools(server: McpServer, client: HimalayaClient) {
+export function registerActionTools(
+  server: McpServer,
+  client: HimalayaClient,
+  options: ToolAccessOptions = {},
+) {
   server.registerTool("export_to_markdown", {
     description: "Export an email as formatted markdown with YAML frontmatter (date, from, to, subject, flags). Returns the markdown text — you can then save it to a file or clipboard.",
     inputSchema: {
@@ -89,6 +94,12 @@ export function registerActionTools(server: McpServer, client: HimalayaClient) {
       destination: z.string().optional().describe("File path to save action items (optional). Writes a markdown file with extracted action items."),
     },
   }, async (args) => {
+    if (args.destination && options.remote) {
+      return {
+        content: [{ type: "text" as const, text: REMOTE_FILE_WRITE_ERROR }],
+        isError: true,
+      };
+    }
     try {
       // Fetch envelope for context
       const envelopeRaw = await client.listEnvelopes(args.folder, 200, undefined, args.account);

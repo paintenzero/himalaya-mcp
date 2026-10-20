@@ -10,7 +10,7 @@ import { z } from "zod/v4";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
 import { envelopeError } from "./_envelope.js";
-import { parseMessageBody } from "../himalaya/parser.js";
+import { parseMessageBody, parseMessageHtml } from "../himalaya/parser.js";
 
 export function registerRenderTools(server: McpServer, client: HimalayaClient) {
   server.registerTool("render_email", {
@@ -24,7 +24,7 @@ export function registerRenderTools(server: McpServer, client: HimalayaClient) {
     try {
       // Try HTML first — parse the JSON-quoted HTML body
       const htmlRaw = await client.readMessageHtml(args.id, args.folder, args.account);
-      const htmlResult = parseMessageBody(htmlRaw);
+      const htmlResult = parseMessageHtml(htmlRaw);
       if (htmlResult.ok && htmlResult.data && htmlResult.data.length > 0) {
         const { NodeHtmlMarkdown } = await import("node-html-markdown");
         const markdown = NodeHtmlMarkdown.translate(htmlResult.data);

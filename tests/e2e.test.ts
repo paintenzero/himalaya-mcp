@@ -213,7 +213,7 @@ describe("E2E: MCP Server Headless", () => {
 
   // --- Tool listing ---
 
-  it("lists all 29 registered tools", async () => {
+  it("lists all 30 registered tools", async () => {
     const result = await sendRequest("tools/list");
     const tools = result.result.tools;
     const toolNames = tools.map((t: any) => t.name).sort();
@@ -225,6 +225,7 @@ describe("E2E: MCP Server Headless", () => {
       "create_calendar_event",
       "create_folder",
       "create_reminder",
+      "delete_email",
       "delete_folder",
       "download_attachment",
       "draft_reply",

@@ -19,7 +19,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TOOL_COUNT } from "../src/index";
+import { TOOL_COUNT } from "../src/server";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -32,6 +32,7 @@ const CANONICAL_TOOLS = [
   "create_calendar_event",
   "create_folder",
   "create_reminder",
+  "delete_email",
   "delete_folder",
   "download_attachment",
   "draft_reply",
@@ -60,7 +61,7 @@ const CANONICAL_TOOLS = [
 describe("tool count sync", () => {
   it("TOOL_COUNT matches expected tool count", () => {
     // When adding/removing tools, update this number AND update:
-    //   - TOOL_COUNT in src/index.ts
+    //   - TOOL_COUNT in src/server.ts
     //   - CANONICAL_TOOLS in this file
     //   - e2e.test.ts tool list
     //   - dogfood.test.ts manifest tool list and count
@@ -72,7 +73,7 @@ describe("tool count sync", () => {
     //   - docs/reference/commands.md
     //   - docs/reference/cheat-sheet.md
     //   - docs/index.md grid cards
-    expect(TOOL_COUNT).toBe(29);
+    expect(TOOL_COUNT).toBe(30);
     expect(CANONICAL_TOOLS.length).toBe(TOOL_COUNT);
   });
 

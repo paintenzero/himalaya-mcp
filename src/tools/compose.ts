@@ -13,8 +13,13 @@ import type { HimalayaClient } from "../himalaya/client.js";
 import { parseTemplate } from "../himalaya/parser.js";
 import { envelopeError } from "./_envelope.js";
 import { validateAttachmentPaths, buildAttachmentMml } from "./_attachments.js";
+import { remoteMmlError, resolveRemoteAttachments, type ToolAccessOptions } from "./_remote.js";
 
-export function registerComposeTools(server: McpServer, client: HimalayaClient) {
+export function registerComposeTools(
+  server: McpServer,
+  client: HimalayaClient,
+  options: ToolAccessOptions = {},
+) {
   server.registerTool("draft_reply", {
     description: "Generate a reply draft for an email. Returns the reply template with headers and quoted original message. Does NOT send — use send_email to send after user reviews.",
     inputSchema: {
@@ -70,9 +75,24 @@ export function registerComposeTools(server: McpServer, client: HimalayaClient) 
       account: z.string().optional().describe("Account name (uses default if omitted)"),
     },
   }, async (args) => {
+    let attachments = args.attachments;
+    if (options.remote) {
+      const mmlErr = remoteMmlError(args.template);
+      if (mmlErr) {
+        return { content: [{ type: "text" as const, text: mmlErr }], isError: true };
+      }
+      if (attachments?.length) {
+        const resolved = resolveRemoteAttachments(attachments);
+        if ("error" in resolved) {
+          return { content: [{ type: "text" as const, text: resolved.error }], isError: true };
+        }
+        attachments = resolved.paths;
+      }
+    }
+
     // Validate attachment paths before showing preview or sending
-    if (args.attachments?.length) {
-      const err = validateAttachmentPaths(args.attachments);
+    if (attachments?.length) {
+      const err = validateAttachmentPaths(attachments);
       if (err) {
         return {
           content: [{ type: "text" as const, text: err }],
@@ -82,8 +102,8 @@ export function registerComposeTools(server: McpServer, client: HimalayaClient) 
     }
 
     // Inject attachment MML parts into the template (after headers+body)
-    const template = args.attachments?.length
-      ? args.template + "\n\n" + buildAttachmentMml(args.attachments)
+    const template = attachments?.length
+      ? args.template + "\n\n" + buildAttachmentMml(attachments)
       : args.template;
 
     // Safety gate: without confirm=true, just show preview

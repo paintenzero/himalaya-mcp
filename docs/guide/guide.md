@@ -23,7 +23,7 @@ himalaya-mcp works with both Claude Code and Claude Desktop, but the experience 
 
 | Feature | Claude Code | Claude Desktop |
 |---------|-------------|----------------|
-| 29 MCP tools | Yes | Yes |
+| 30 MCP tools | Yes | Yes |
 | 7 MCP prompts | Yes | Yes |
 | 3 MCP resources | Yes | Yes |
 | `/himalaya:*` slash commands | Yes (16 skills) | No |
@@ -35,7 +35,7 @@ himalaya-mcp works with both Claude Code and Claude Desktop, but the experience 
 
 **In Claude Code**, the plugin system provides slash-command skills (`/himalaya:inbox`, `/himalaya:triage`, `/himalaya:search`, `/himalaya:manage`, `/himalaya:stats`, `/himalaya:config`, etc.) that orchestrate multi-step workflows, plus an autonomous email assistant agent and a pre-send confirmation hook. These are Claude Code-only features defined in the plugin manifest.
 
-**In Claude Desktop**, you get the full MCP server -- all 29 tools, 7 prompts, and 3 resources work identically. You interact using natural language instead of slash commands. Say "check my inbox" and Claude calls `list_emails` directly. The two-phase send safety gate works the same way.
+**In Claude Desktop**, you get the full MCP server -- all 30 tools, 7 prompts, and 3 resources work identically. You interact using natural language instead of slash commands. Say "check my inbox" and Claude calls `list_emails` directly. The two-phase send safety gate works the same way.
 
 !!! tip "Which should I use?"
     Use **Claude Code** if you want the structured skill workflows and the email assistant agent. Use **Claude Desktop** if you prefer the desktop UI or want email access alongside other MCP servers.
@@ -130,7 +130,7 @@ The `setup` command writes a server entry into Claude Desktop's config file. It 
 }
 ```
 
-Claude Desktop reads this on startup and spawns `node dist/index.js` as a subprocess. The MCP server communicates over stdin/stdout using JSON-RPC, exposing all 29 tools, 7 prompts, and 3 resources.
+Claude Desktop reads this on startup and spawns `node dist/index.js` as a subprocess. The MCP server communicates over stdin/stdout using JSON-RPC, exposing all 30 tools, 7 prompts, and 3 resources.
 
 #### Using himalaya-mcp in Claude Desktop
 
@@ -204,7 +204,7 @@ Example with env vars:
 }
 ```
 
-## MCP Tools (29)
+## MCP Tools (30)
 
 ### Reading
 
@@ -229,6 +229,7 @@ Example with env vars:
 |------|-------------|----------------|
 | `flag_email` | Add/remove flags (Seen, Flagged, Answered, etc.) | `id`, `flags`, `action` ("add"/"remove") |
 | `move_email` | Move to another folder | `id`, `target_folder` |
+| `delete_email` | Trash a message with safety gate (expunges if already in trash) | `id`, `folder`, `confirm` (must be `true` to delete) |
 
 ### Composing
 

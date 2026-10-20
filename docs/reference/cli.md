@@ -198,13 +198,59 @@ Restart Claude Desktop after removal.
 
 ---
 
+## `himalaya-mcp serve`
+
+Streamable HTTP for a remote MCP client such as [Composio custom MCP](https://docs.composio.dev/docs/extending-sessions/custom-mcp). Local Claude and Codex installs stay on stdio.
+
+```bash
+export MCP_BEARER_TOKEN="$(openssl rand -hex 32)"
+himalaya-mcp serve --host 127.0.0.1 --port 8080
+```
+
+| Flag / variable | Default | Description |
+|-----------------|---------|-------------|
+| `--host`, `MCP_HOST` | `127.0.0.1` | Bind address. `0.0.0.0` listens on every interface. |
+| `--port`, `MCP_PORT` | `8080` | TCP port. |
+| `--path`, `MCP_PATH` | `/mcp` | MCP endpoint. |
+| `MCP_BEARER_TOKEN` | required | Shared secret, 16 characters or more. |
+| `--token-file`, `MCP_BEARER_TOKEN_FILE` | | File to read the secret from. |
+| `--sse`, `MCP_HTTP_JSON=false` | JSON body | Use an SSE response body instead. |
+
+Every request to the MCP path must send `Authorization: Bearer <token>`. `GET /health` does not require a token and returns no mailbox data.
+
+`node dist/index.js --http` is the same listener. `MCP_TRANSPORT=http` also selects it. Leave that variable unset for the Claude plugin.
+
+Composio needs a public HTTPS URL. Point a TLS proxy or tunnel at this port, then register the toolkit with API-key auth:
+
+```bash
+curl --request POST \
+  --url https://backend.composio.dev/api/v3.1/custom/toolkits/upsert \
+  --header "x-api-key: $COMPOSIO_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "slug": "HIMALAYA",
+    "toolkit_config": {
+      "name": "Himalaya",
+      "app_url": "https://mcp.example.com/mcp",
+      "auth_schemes": [
+        {
+          "mode": "API_KEY",
+          "headers": { "Authorization": "Bearer {{generic_api_key}}" }
+        }
+      ]
+    }
+  }'
+```
+
+Store `MCP_BEARER_TOKEN` as the connected account's API key, then sync the toolkit. The server answers each JSON-RPC call on its own, with no session id to pin.
+
 ## Build Commands
 
 ```bash
 npm run build           # TypeScript compilation (development)
 npm run build:bundle    # Build root + plugin bundles (~910KB each, production)
 npm run build:mcpb      # Build .mcpb Desktop Extension (~253KB)
-npm test                # Run 718 tests (vitest, threads pool)
+npm test                # Run 748 tests (vitest, threads pool)
 node dist/index.js      # Start MCP server standalone
 ```
 
@@ -216,3 +262,10 @@ node dist/index.js      # Start MCP server standalone
 | `HIMALAYA_ACCOUNT` | (system default) | Default email account name |
 | `HIMALAYA_FOLDER` | `INBOX` | Default folder for operations |
 | `HIMALAYA_TIMEOUT` | `120000` (2 min) | Command timeout in ms (0 = unlimited) |
+| `MCP_BEARER_TOKEN` | required for `serve` | Bearer token for the HTTP listener |
+| `MCP_BEARER_TOKEN_FILE` | | File containing that token |
+| `MCP_HOST` | `127.0.0.1` | HTTP bind address |
+| `MCP_PORT` | `8080` | HTTP port |
+| `MCP_PATH` | `/mcp` | HTTP MCP path |
+| `MCP_TRANSPORT` | `stdio` | Set to `http` to serve HTTP from `dist/index.js` |
+| `MCP_HTTP_JSON` | `true` | Set to `false` for SSE POST responses |

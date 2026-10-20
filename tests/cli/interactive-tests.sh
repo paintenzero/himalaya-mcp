@@ -137,7 +137,7 @@ run_test 4 \
 
 run_test 5 \
     "MCP server: lists tools" \
-    "JSON response listing 29 tools (list_emails, read_email, etc.)" \
+    "JSON response listing 30 tools (list_emails, read_email, etc.)" \
     "printf '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}' | timeout 5 node dist/index.js 2>/dev/null | tail -1 | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(f\"Tools: {len(d[\"result\"][\"tools\"])}\"); [print(f\"  - {t[\"name\"]}\") for t in d[\"result\"][\"tools\"]]' 2>/dev/null || echo '(check raw output)'"
 
 run_test 6 \

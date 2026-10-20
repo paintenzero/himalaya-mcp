@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Move, flag, and read-by-id now pass the mailbox himalaya v2 actually reads.** `move_email` sends the destination as `--to` and the source as `--from` (a positional folder was parsed as a message id, and `--mailbox` is not a move flag). Flag changes use repeated `--flag`. Reads pass `--mailbox` even for INBOX, so an id is not fetched from the inbox alias. `read_email_raw` on v2 uses `message read --raw` and passes that same mailbox.
+- **`read_email` reads the body out of himalaya 2.2's parsed message.** `message read --json` returns `{parts, text_body, html_body}`, where the body lists are part indexes, not the text. The tool was handing that object back as the message. It now returns the `Text` part, or the HTML part with tags removed when the message has no plain part. `read_email_html` and `render_email` use the same payload, because v2 has no `message export`.
+
+### Added
+
+- **`delete_email` tool** (30 tools). Trashes a message, and expunges it when it is already in trash. Uses the two-phase safety gate: without `confirm=true` it returns a preview warning and deletes nothing. Runs `message delete --mailbox` on himalaya 2.1+ and falls back to a move into the provider trash folder on 2.0. Pass `folder` as the mailbox that holds the message now. `Deleted` is no longer accepted as a flag on himalaya v2.
+- **Streamable HTTP transport** (`himalaya-mcp serve`, or `node dist/index.js --http`). Remote clients such as Composio connect to `/mcp` with `Authorization: Bearer <token>`. `MCP_BEARER_TOKEN` is required, compared in constant time, and removed from the environment before himalaya runs. The listener defaults to loopback and JSON responses. Stdio remains the default for local plugins.
+- **Remote host-file limits.** Over HTTP, `create_action_item` refuses `destination`, and `send_email` / `compose_email` attach only `download_attachment` files and reject MML `filename=` parts, so a token holder or a prompt-injected agent cannot write or mail out arbitrary host files.
+
 ## [2.1.2] - 2026-08-17
 
 CI and build reliability. No runtime behavior changes — `src/cli/doctor.ts` is a maintainer

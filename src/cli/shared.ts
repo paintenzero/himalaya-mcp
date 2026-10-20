@@ -171,6 +171,22 @@ export function printHelp(): void {
   console.log("  doctor --fix              Auto-fix common issues");
   console.log("  doctor --json             Machine-readable output");
   console.log("");
+  console.log("Network (Streamable HTTP, for Composio):");
+  console.log("  serve                     Listen for remote MCP clients (bearer token required)");
+  console.log("  serve --host <addr>       Bind address (default 127.0.0.1, or MCP_HOST)");
+  console.log("  serve --port <n>          Port (default 8080, or MCP_PORT)");
+  console.log("  serve --path <path>       MCP path (default /mcp)");
+  console.log("  serve --token-file <file> Read the bearer token from a file");
+  console.log("  serve --sse               Reply with SSE instead of a single JSON body");
+  console.log("");
+  console.log("  Set MCP_BEARER_TOKEN (16+ characters) or MCP_BEARER_TOKEN_FILE.");
+  console.log("  Clients send: Authorization: Bearer <token>");
+  console.log("  Composio app_url: the public HTTPS URL of this path.");
+  console.log("  Composio auth header: Authorization: Bearer {{generic_api_key}}");
+  console.log("  Put the same token on the Composio connected account.");
+  console.log("  Terminate TLS in front of this process. Loopback is the default;");
+  console.log("  use --host 0.0.0.0 when another machine must connect directly.");
+  console.log("");
   console.log("Meta:");
   console.log("  --version, -v             Print version and exit");
   console.log("  --help, -h, help          Print this help and exit");
@@ -179,6 +195,7 @@ export function printHelp(): void {
   console.log("  himalaya-mcp setup                    # First-time install");
   console.log("  himalaya-mcp doctor --account work    # Diagnose one account");
   console.log("  himalaya-mcp doctor --json | jq .     # Pipe diagnostics to jq");
+  console.log("  MCP_BEARER_TOKEN=... himalaya-mcp serve");
   console.log("");
   console.log("Docs: https://data-wise.github.io/himalaya-mcp/");
 }

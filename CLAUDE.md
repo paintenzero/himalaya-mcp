@@ -8,7 +8,7 @@
 - **Backend:** himalaya CLI (subprocess with JSON output)
 - **Platforms:** Claude Code (plugin), Claude Desktop/Cowork (MCP server)
 - **Version:** 2.1.2
-- **Current Phase:** All phases complete (29 tools, 7 prompts, 3 resources, 16 skills, 718 tests)
+- **Current Phase:** All phases complete (30 tools, 7 prompts, 3 resources, 16 skills, 748 tests)
 
 ### What It Does
 
@@ -34,6 +34,8 @@ himalaya-mcp/
 ├── src/
 │   ├── index.ts                 # MCP server entry point
 │   ├── config.ts                # Env-based configuration (HIMALAYA_BINARY, etc.)
+│   ├── server.ts                # McpServer assembly (createMcpServerFactory, VERSION, TOOL_COUNT)
+│   ├── http.ts / http-config.ts # Streamable HTTP listener + bearer config (`serve`)
 │   ├── himalaya/
 │   │   ├── client.ts            # Subprocess wrapper (execFile, no shell injection) + retry policy
 │   │   ├── parser.ts            # JSON response parser + formatEnvelope helper
@@ -49,7 +51,7 @@ himalaya-mcp/
 │   │   ├── render.ts            # render_email
 │   │   ├── unread.ts            # get_unread_count
 │   │   ├── list-starred.ts      # list_starred
-│   │   ├── manage.ts            # flag_email, move_email
+│   │   ├── manage.ts            # flag_email, move_email, delete_email
 │   │   ├── compose.ts           # draft_reply, send_email (two-phase safety gate)
 │   │   ├── compose-new.ts       # compose_email (new messages, safety gate)
 │   │   ├── folders.ts           # list_folders, create_folder, delete_folder
@@ -60,7 +62,8 @@ himalaya-mcp/
 │   │   ├── snooze.ts            # snooze_email, list_snoozed_emails
 │   │   ├── health.ts            # health_check (per-account diagnostics)
 │   │   ├── actions.ts           # export_to_markdown, create_action_item
-│   │   └── _envelope.ts         # Shared error wrapper
+│   │   ├── _envelope.ts         # Shared error wrapper
+│   │   └── _remote.ts           # Host-file limits for HTTP callers
 │   ├── prompts/
 │   │   ├── triage.ts            # triage_inbox prompt
 │   │   ├── summarize.ts         # summarize_email prompt
@@ -121,6 +124,9 @@ himalaya-mcp/
 │   ├── reminders.test.ts              # 7 create_reminder tests
 │   ├── snooze.test.ts                 # 10 snooze_email/list_snoozed_emails tests
 │   ├── inbox.test.ts                  # 23 search/list inbox tests
+│   ├── http.test.ts                   # 15 HTTP listener + bearer tests
+│   ├── remote-access.test.ts          # 13 HTTP host-file limit tests
+│   ├── entry.test.ts                  # 2 bundle entry-point tests
 │   ├── dogfood.test.ts                # 152 dogfooding tests (realistic Claude usage)
 │   ├── dogfood-reliability.test.ts    # 20 reliability scenarios
 │   ├── setup.test.ts                  # 52 setup CLI + multi-account doctor E2E tests
@@ -132,7 +138,7 @@ himalaya-mcp/
 └── tsconfig.json
 ```
 
-### Implemented MCP Tools (29)
+### Implemented MCP Tools (30)
 
 | Tool | Description |
 |------|-------------|
@@ -145,6 +151,7 @@ himalaya-mcp/
 | `flag_email` | Add/remove flags (Seen, Flagged, Answered, etc.) |
 | `get_unread_count` | Get unread email count for a folder |
 | `move_email` | Move email to target folder |
+| `delete_email` | Trash a message (expunges if already in trash) |
 | `draft_reply` | Generate reply template with DRAFT markers |
 | `send_email` | Send email with two-phase safety gate (preview then confirm) |
 | `snooze_email` | Snooze email until specified time |
@@ -253,7 +260,7 @@ npm run build
 ### Testing
 
 ```bash
-npm test                         # Run vitest (718 tests across 41 test files)
+npm test                         # Run vitest (748 tests across 44 test files)
 npm run build:bundle             # Build root + plugin bundles (~908KB each)
 node dist/index.js               # Run MCP server directly
 ```

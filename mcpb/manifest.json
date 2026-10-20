@@ -103,7 +103,11 @@
     },
     {
       "name": "move_email",
-      "description": "Move an email to a different folder. Common targets: Archive, Trash, Spam, Sent, Drafts."
+      "description": "Move an email to a different folder. Common targets: Archive, Trash, Spam, Sent, Drafts. target_folder is the destination and is passed to himalaya (v2: --to). folder is the mailbox the message is in now (v2: --from) and is passed even when it is INBOX."
+    },
+    {
+      "name": "delete_email",
+      "description": "Trash an email. SAFETY: requires confirm=true to actually delete; without it, returns a preview warning. Moves it to the trash mailbox, or expunges it when it is already in trash. folder is the mailbox that currently holds the message (not the trash folder) and is passed to himalaya with the id."
     },
     {
       "name": "draft_reply",

@@ -11,8 +11,9 @@ import { promisify } from "node:util";
 import type { HimalayaClientOptions } from "./types.js";
 import { classifyStderr, HimalayaError, unsupportedBackendError } from "./errors.js";
 import { resolveFromAddress } from "./config-toml.js";
-import { detectHimalayaVersion, type HimalayaVersion } from "./cli-version.js";
+import { detectHimalayaVersion, himalayaAtLeast, type HimalayaVersion } from "./cli-version.js";
 import { isImapAccount, listAccounts } from "./accounts.js";
+import { getTrashFolder } from "./trash.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -26,6 +27,26 @@ function assertSafeArg(value: string, field: string): void {
       `Refusing to pass it to himalaya.`,
     );
   }
+}
+
+// himalaya v2 `flag add/remove --flag` accepts only these four names.
+// `Deleted` is not one of them; trashing a message is `message delete`.
+const V2_FLAG_NAMES: Record<string, string> = {
+  seen: "seen",
+  answered: "answered",
+  flagged: "flagged",
+  draft: "draft",
+};
+
+function toHimalayaV2Flag(flag: string): string {
+  const mapped = V2_FLAG_NAMES[flag.toLowerCase()];
+  if (!mapped) {
+    throw new Error(
+      `flag "${flag}" is not accepted by himalaya v2 (seen, answered, flagged, draft). ` +
+      `To trash a message, call delete_email.`,
+    );
+  }
+  return mapped;
 }
 
 // Tokenize a search query with quote awareness, so `subject "meeting notes"`
@@ -101,12 +122,15 @@ export class HimalayaClient {
     return this.opts.account;
   }
 
-  // Resolve the effective folder, validate it, and append the folder flag to
-  // `args` if it differs from the implicit INBOX default. himalaya v2 renamed
-  // --folder to --mailbox. Returns the effective folder.
+  // Resolve the effective folder, validate it, and append the folder flag.
+  // himalaya v2 renamed --folder to --mailbox. The flag is always passed,
+  // including for INBOX: an omitted mailbox means "whatever the inbox alias
+  // is", which is the wrong mailbox for an id listed from anywhere else, and
+  // skipping names that merely casefold to INBOX ("Inbox") dropped a folder
+  // the caller had named. Returns the effective folder.
   private async applyFolderArg(args: string[], folder: string | undefined): Promise<string> {
     const f = folder || this.opts.folder;
-    if (f && f.toUpperCase() !== "INBOX") {
+    if (f) {
       assertSafeArg(f, "folder");
       const version = await this.resolveVersion();
       args.push(version.major >= 2 ? "--mailbox" : "--folder", f);
@@ -252,19 +276,52 @@ export class HimalayaClient {
   /** Read a message body (plain text). */
   async readMessage(id: string, folder?: string, account?: string): Promise<string> {
     assertSafeArg(id, "id");
-    const args = ["message", "read", id];
+    // Mailbox first, id last. himalaya addresses a message inside one mailbox,
+    // so the folder has to travel with the id or the read hits the inbox alias.
+    const args = ["message", "read"];
     const f = await this.applyFolderArg(args, folder);
-    return this.exec(args, { folder: f, account });
+    return this.exec(args, { folder: f, account, trailingArgs: [id] });
+  }
+
+  /**
+   * Read the raw RFC 5322 bytes of a message.
+   *
+   * himalaya v2 `message read --raw --json` returns those bytes as a JSON
+   * string. v1 has no `--raw`; callers keep using `message export --full`.
+   */
+  async readMessageRaw(id: string, folder?: string, account?: string): Promise<string> {
+    assertSafeArg(id, "id");
+    const version = await this.resolveVersion();
+    if (version.major < 2) {
+      throw new Error("readMessageRaw requires himalaya v2 (message read --raw)");
+    }
+    const args = ["message", "read", "--raw"];
+    const f = await this.applyFolderArg(args, folder);
+    const stdout = await this.exec(args, { folder: f, account, trailingArgs: [id] });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stdout);
+    } catch {
+      throw new Error("himalaya message read --raw --json did not return JSON");
+    }
+    if (typeof parsed !== "string") {
+      throw new Error("himalaya message read --raw --json did not return a string");
+    }
+    return parsed;
   }
 
   /** Read a message body (HTML).
    *
-   * himalaya v1.2.0 removed the --html flag from `message read`.
-   * Instead, use `message export` (without --full) which exports
-   * MIME parts as separate files: index.html for HTML, plain.txt for text.
+   * himalaya v2 removed `message export`. `message read --json` is the
+   * parsed message, and the HTML lives in its `html_body` parts.
+   * v1 still exports MIME parts to a directory (`index.html`).
    */
   async readMessageHtml(id: string, folder?: string, account?: string): Promise<string> {
     assertSafeArg(id, "id");
+    const version = await this.resolveVersion();
+    if (version.major >= 2) {
+      return this.readMessage(id, folder, account);
+    }
     const tmpDir = mkdtempSync(join(tmpdir(), "himalaya-mcp-html-"));
     try {
       const args = ["message", "export"];
@@ -291,6 +348,20 @@ export class HimalayaClient {
     for (const flag of flags) {
       assertSafeArg(flag, "flag");
     }
+    const version = await this.resolveVersion();
+    if (version.major >= 2) {
+      // v2: `flag add --mailbox <name> --flag <flag> <id>`.
+      // Positional flag names are parsed as message ids, and `--flag` is required.
+      if (flags.length === 0) {
+        throw new Error("flags must name at least one of seen, answered, flagged, draft");
+      }
+      const args = ["flag", action];
+      const f = await this.applyFolderArg(args, folder);
+      for (const flag of flags) {
+        args.push("--flag", toHimalayaV2Flag(flag));
+      }
+      return this.exec(args, { folder: f, account, trailingArgs: [id] });
+    }
     const args = ["flag", action, id, ...flags];
     const f = await this.applyFolderArg(args, folder);
     return this.exec(args, { folder: f, account });
@@ -305,9 +376,40 @@ export class HimalayaClient {
   ): Promise<string> {
     assertSafeArg(id, "id");
     assertSafeArg(targetFolder, "target_folder");
+    const version = await this.resolveVersion();
+    const source = folder || this.opts.folder;
+    if (version.major >= 2) {
+      // v2: `message move --from <source> --to <target> <id>`.
+      // A positional target is parsed as a message id, and `--mailbox` is not
+      // a move flag (the source is `--from`). Both are required here so an
+      // omitted inbox alias cannot send the message to the wrong mailbox.
+      assertSafeArg(source, "folder");
+      const args = ["message", "move", "--from", source, "--to", targetFolder];
+      return this.exec(args, { account, trailingArgs: [id] });
+    }
     const args = ["message", "move", targetFolder, id];
     const f = await this.applyFolderArg(args, folder);
     return this.exec(args, { folder: f, account });
+  }
+
+  /**
+   * Trash a message.
+   *
+   * himalaya 2.1+ `message delete` moves to trash, then expunges when the
+   * message is already there. v2.0.0 removed that command, so it falls back
+   * to a move into the provider trash folder. The folder argument is the
+   * mailbox that currently holds the message.
+   */
+  async deleteMessage(id: string, folder?: string, account?: string): Promise<string> {
+    assertSafeArg(id, "id");
+    const version = await this.resolveVersion();
+    if (version.major === 2 && !himalayaAtLeast(version, 2, 1)) {
+      const trash = getTrashFolder(account || this.opts.account);
+      return this.moveMessage(id, trash, folder, account);
+    }
+    const args = ["message", "delete"];
+    const f = await this.applyFolderArg(args, folder);
+    return this.exec(args, { folder: f, account, trailingArgs: [id] });
   }
 
   /** Generate a reply template for a message. */

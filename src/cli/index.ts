@@ -7,6 +7,7 @@
  *   doctor      -> ./doctor.js    (doctor --fix / --json / --account)
  *   install-ext -> ./extension.js (install .mcpb)
  *   remove-ext  -> ./extension.js (remove .mcpb)
+ *   serve       -> ../http.js      (Streamable HTTP + bearer token)
  *   --help / --version / unknown
  *
  * Imported as a library, the main dispatcher does nothing (no side effects).
@@ -49,6 +50,19 @@ async function runCli(): Promise<void> {
     const postRelease = args.includes("--post-release");
     const account = parseAccountFlag(args);
     await doctor({ fix, json, account, preRelease, postRelease });
+  } else if (command === "serve") {
+    if (args.includes("--help") || args.includes("-h")) {
+      printHelp();
+      return;
+    }
+    try {
+      const { serveFromArgv } = await import("../http.js");
+      await serveFromArgv(args.slice(1));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`himalaya-mcp: ${message}`);
+      process.exit(1);
+    }
   } else if (!command || command === "setup") {
     if (args.includes("--check")) {
       setupCheck();

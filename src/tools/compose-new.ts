@@ -11,6 +11,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
 import { envelopeError } from "./_envelope.js";
 import { validateAttachmentPaths, buildAttachmentMml } from "./_attachments.js";
+import { remoteMmlError, resolveRemoteAttachments, type ToolAccessOptions } from "./_remote.js";
 
 /** Build an MML email template from parameters. */
 function buildTemplate(
@@ -35,7 +36,11 @@ function buildTemplate(
   return result;
 }
 
-export function registerComposeNewTools(server: McpServer, client: HimalayaClient) {
+export function registerComposeNewTools(
+  server: McpServer,
+  client: HimalayaClient,
+  options: ToolAccessOptions = {},
+) {
   server.registerTool("compose_email", {
     description: "Compose and send a new email (not a reply). SAFETY: requires confirm=true to actually send. Without confirm, returns a preview for user review.",
     inputSchema: {
@@ -71,9 +76,26 @@ export function registerComposeNewTools(server: McpServer, client: HimalayaClien
       };
     }
 
+    let attachments = args.attachments;
+    if (options.remote) {
+      // Check every caller-supplied field: a newline in subject or cc can
+      // carry MML into the body as easily as body itself.
+      const mmlErr = remoteMmlError(buildTemplate(args.to, args.subject, args.body, args.cc, args.bcc, from));
+      if (mmlErr) {
+        return { content: [{ type: "text" as const, text: mmlErr }], isError: true };
+      }
+      if (attachments?.length) {
+        const resolved = resolveRemoteAttachments(attachments);
+        if ("error" in resolved) {
+          return { content: [{ type: "text" as const, text: resolved.error }], isError: true };
+        }
+        attachments = resolved.paths;
+      }
+    }
+
     // Validate attachment paths before building the template
-    if (args.attachments?.length) {
-      const err = validateAttachmentPaths(args.attachments);
+    if (attachments?.length) {
+      const err = validateAttachmentPaths(attachments);
       if (err) {
         return {
           content: [{ type: "text" as const, text: err }],
@@ -82,7 +104,7 @@ export function registerComposeNewTools(server: McpServer, client: HimalayaClien
       }
     }
 
-    const template = buildTemplate(args.to, args.subject, args.body, args.cc, args.bcc, from, args.attachments);
+    const template = buildTemplate(args.to, args.subject, args.body, args.cc, args.bcc, from, attachments);
 
     // Safety gate: without confirm=true, just show preview
     if (!args.confirm) {
