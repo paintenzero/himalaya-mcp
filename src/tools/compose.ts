@@ -12,7 +12,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
 import { parseTemplate } from "../himalaya/parser.js";
 import { envelopeError } from "./_envelope.js";
-import { validateAttachmentPaths, buildAttachmentMml } from "./_attachments.js";
+import { validateAttachmentPaths, buildAttachmentMml, templateFilePartError } from "./_attachments.js";
 import { remoteMmlError, resolveRemoteAttachments, type ToolAccessOptions } from "./_remote.js";
 
 export function registerComposeTools(
@@ -88,6 +88,17 @@ export function registerComposeTools(
         }
         attachments = resolved.paths;
       }
+    }
+
+    // himalaya reads any MML filename= part from local disk when sending.
+    // Only the `attachments` parameter may add those, so a tag injected into
+    // the template (e.g. via a prompt-injected reply) cannot leak a file.
+    const mmlErr = templateFilePartError(args.template);
+    if (mmlErr) {
+      return {
+        content: [{ type: "text" as const, text: mmlErr }],
+        isError: true,
+      };
     }
 
     // Validate attachment paths before showing preview or sending

