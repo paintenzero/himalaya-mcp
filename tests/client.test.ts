@@ -361,8 +361,19 @@ describe("HimalayaClient", () => {
       ]);
     });
 
-    it("readMessageHtml uses message export instead of removed --html flag", async () => {
-      setupMock("");
+    it("readMessageHtml on v2 uses message read --json instead of the removed export", async () => {
+      setupMock('{"html_body":[0],"parts":[]}');
+      const client = new HimalayaClient();
+      const result = await client.readMessageHtml("12345", "INBOX");
+
+      expect(result).toContain("html_body");
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[])[0] === "message")![1] as string[];
+      expect(argv).toEqual(["message", "read", "--mailbox", "INBOX", "--json", "12345"]);
+      expect(argv).not.toContain("export");
+    });
+
+    it("readMessageHtml on v1 exports the html part instead of the removed --html flag", async () => {
+      configureMock({ version: V1_VERSION_STDOUT, stdout: "" });
       vi.mocked(fs.mkdtempSync).mockReturnValue("/tmp/himalaya-mcp-html-test");
       vi.mocked(fs.readFileSync).mockReturnValue("<p>Test HTML content</p>");
       vi.mocked(fs.rmSync).mockImplementation(() => {});
@@ -377,8 +388,7 @@ describe("HimalayaClient", () => {
         expect.arrayContaining(["message", "export", "--destination", "/tmp/himalaya-mcp-html-test", "12345"]),
         expect.any(Object),
       );
-      // Ensure the old --html flag is NOT used
-      const args = mockExecFileAsync.mock.calls[0][1] as string[];
+      const args = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[]).includes("export"))![1] as string[];
       expect(args).not.toContain("--html");
     });
 

@@ -5,6 +5,7 @@ import {
   parseFolders,
   parseAccounts,
   parseMessageBody,
+  parseMessageHtml,
   formatEnvelope,
   unwrapList,
 } from "../src/himalaya/parser.js";
@@ -295,5 +296,90 @@ describe("parseMessageBody", () => {
     if (result.ok) {
       expect(result.data).toBe("raw text body");
     }
+  });
+
+  it("reads the Text part indexed by himalaya 2.2 text_body", () => {
+    const raw = JSON.stringify({
+      text_body: [1],
+      html_body: [2],
+      attachments: [],
+      parts: [
+        { body: { Multipart: [] } },
+        { body: { Text: "Hello plain" } },
+        { body: { Html: "<p>Hello html</p>" } },
+      ],
+    });
+    const text = parseMessageBody(raw);
+    const html = parseMessageHtml(raw);
+    expect(text.ok && text.data).toBe("Hello plain");
+    expect(html.ok && html.data).toBe("<p>Hello html</p>");
+  });
+
+  it("strips an HTML-only part when text_body points at it", () => {
+    const raw = JSON.stringify({
+      text_body: [0],
+      html_body: [0],
+      parts: [{ body: { Html: "<style>p{}</style><p>Only&nbsp;html</p><br>Line<script>x</script>" } }],
+    });
+    const text = parseMessageBody(raw);
+    const html = parseMessageHtml(raw);
+    expect(text.ok && text.data).toBe("Only html\n\nLine");
+    expect(html.ok && html.data).toContain("<p>Only");
+  });
+
+  it("reads a decoded string body from a later himalaya json view", () => {
+    const raw = JSON.stringify({ text_body: "plain already", html_body: "<p>h</p>", parts: [] });
+    expect(parseMessageBody(raw).ok && parseMessageBody(raw).data).toBe("plain already");
+    expect(parseMessageHtml(raw).ok && parseMessageHtml(raw).data).toBe("<p>h</p>");
+  });
+
+  it("surfaces a himalaya error object instead of returning it as the body", () => {
+    const result = parseMessageBody(JSON.stringify({
+      error: "cannot find message",
+      sources: [],
+      backtrace: null,
+    }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("cannot find message");
+  });
+
+  it("does not return an attachment as the body when the body index lists are empty", () => {
+    const raw = JSON.stringify({
+      text_body: [],
+      html_body: [],
+      attachments: [1, 2],
+      parts: [
+        { body: { Multipart: [1, 2] } },
+        { body: { Text: "name,amount\nalice,10" } },
+        { body: { Html: "<p>attached page</p>" } },
+      ],
+    });
+    expect(parseMessageBody(raw).ok && parseMessageBody(raw).data).toBe("");
+    expect(parseMessageHtml(raw).ok && parseMessageHtml(raw).data).toBe("");
+  });
+
+  it("does not return an attached HTML file as the HTML body of a plain message", () => {
+    const raw = JSON.stringify({
+      text_body: [1],
+      html_body: [],
+      attachments: [2],
+      parts: [
+        { body: { Multipart: [1, 2] } },
+        { body: { Text: "hi" } },
+        { body: { Html: "<p>attached page</p>" } },
+      ],
+    });
+    expect(parseMessageBody(raw).ok && parseMessageBody(raw).data).toBe("hi");
+    expect(parseMessageHtml(raw).ok && parseMessageHtml(raw).data).toBe("");
+  });
+
+  it("decodes &amp; last so an escaped entity stays literal", () => {
+    const raw = JSON.stringify({
+      text_body: [0],
+      html_body: [0],
+      parts: [{ body: { Html: "<p>write &amp;lt;b&amp;gt; for bold, &lt;b&gt; renders</p>" } }],
+    });
+    const result = parseMessageBody(raw);
+    expect(result.ok && result.data).toBe("write &lt;b&gt; for bold, <b> renders");
   });
 });

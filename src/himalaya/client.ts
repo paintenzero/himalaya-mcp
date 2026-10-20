@@ -312,12 +312,16 @@ export class HimalayaClient {
 
   /** Read a message body (HTML).
    *
-   * himalaya v1.2.0 removed the --html flag from `message read`.
-   * Instead, use `message export` (without --full) which exports
-   * MIME parts as separate files: index.html for HTML, plain.txt for text.
+   * himalaya v2 removed `message export`. `message read --json` is the
+   * parsed message, and the HTML lives in its `html_body` parts.
+   * v1 still exports MIME parts to a directory (`index.html`).
    */
   async readMessageHtml(id: string, folder?: string, account?: string): Promise<string> {
     assertSafeArg(id, "id");
+    const version = await this.resolveVersion();
+    if (version.major >= 2) {
+      return this.readMessage(id, folder, account);
+    }
     const tmpDir = mkdtempSync(join(tmpdir(), "himalaya-mcp-html-"));
     try {
       const args = ["message", "export"];

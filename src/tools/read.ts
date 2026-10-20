@@ -5,7 +5,7 @@
 import { z } from "zod/v4";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { HimalayaClient } from "../himalaya/client.js";
-import { parseMessageBody } from "../himalaya/parser.js";
+import { parseMessageBody, parseMessageHtml } from "../himalaya/parser.js";
 import { parseError } from "../himalaya/errors.js";
 import { envelopeError } from "./_envelope.js";
 
@@ -47,7 +47,7 @@ export function registerReadTools(server: McpServer, client: HimalayaClient) {
   }, async (args) => {
     try {
       const raw = await client.readMessageHtml(args.id, args.folder, args.account);
-      const result = parseMessageBody(raw);
+      const result = parseMessageHtml(raw);
 
       if (!result.ok) {
         return envelopeError(parseError(result.error));

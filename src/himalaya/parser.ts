@@ -181,23 +181,152 @@ export function parseTemplate(raw: string): CommandOutput<string> {
 }
 
 /**
- * Parse message body response.
- * himalaya returns the body as a JSON-quoted string.
+ * Parse a plain-text message body.
+ *
+ * himalaya v1 `message read --output json` returns a JSON string.
+ * himalaya 2.2 `message read --json` returns mail-parser's message:
+ * `text_body` and `html_body` are indexes into `parts`, and each part's
+ * `body` is a tagged object (`Text`, `Html`, `Multipart`, `Message`).
+ * A later himalaya puts the decoded text straight in `text_body`.
+ * An HTML-only message has no `Text` part; the plain view is the tags
+ * stripped from the HTML part.
  */
 export function parseMessageBody(raw: string): CommandOutput<MessageBody> {
-  const trimmed = raw.trim();
+  const extracted = extractMessage(raw, "text");
+  if (!extracted.ok) return extracted;
+  return { ok: true, data: extracted.data };
+}
 
+/**
+ * Parse an HTML message body from the same himalaya payload.
+ * A raw HTML string (v1 `message export`) is returned unchanged.
+ * A v2 message with no HTML part yields an empty string.
+ */
+export function parseMessageHtml(raw: string): CommandOutput<MessageBody> {
+  return extractMessage(raw, "html");
+}
+
+function extractMessage(raw: string, kind: "text" | "html"): CommandOutput<MessageBody> {
+  const trimmed = raw.trim();
   if (!trimmed) {
     return { ok: false, error: "Empty message body", code: "EMPTY" };
   }
 
-  // himalaya message read --output json returns a JSON string (quoted)
-  // e.g., "Hello world\n\nThis is the body"
+  let parsed: unknown;
   try {
-    const body = JSON.parse(trimmed) as string;
-    return { ok: true, data: body };
+    parsed = JSON.parse(trimmed);
   } catch {
-    // If it's not valid JSON, it might be raw text (fallback)
     return { ok: true, data: trimmed };
+  }
+
+  if (typeof parsed === "string") {
+    return { ok: true, data: parsed };
+  }
+
+  const message = asRecord(parsed);
+  if (!message) {
+    return { ok: true, data: trimmed };
+  }
+
+  const directText = stringList(message.text_body);
+  const directHtml = stringList(message.html_body);
+  if (kind === "html" && directHtml) return { ok: true, data: directHtml.join("\n") };
+  if (kind === "text" && directText) return { ok: true, data: directText.join("\n\n") };
+
+  const parts = Array.isArray(message.parts) ? message.parts : [];
+  if (parts.length === 0) {
+    if (typeof message.error === "string") {
+      return { ok: false, error: message.error.split("\n")[0] ?? message.error, code: "PARSE_ERROR" };
+    }
+    if (kind === "html") return { ok: true, data: directHtml?.join("\n") ?? "" };
+    if (directHtml) return { ok: true, data: htmlToText(directHtml.join("\n")) };
+    return { ok: true, data: trimmed };
+  }
+
+  if (kind === "html") {
+    const html = bodiesFor(parts, indexList(message.html_body), "Html");
+    return { ok: true, data: html.join("\n") };
+  }
+
+  const textIndexes = indexList(message.text_body);
+  const htmlIndexes = indexList(message.html_body);
+  const text = bodiesFor(parts, textIndexes, "Text");
+  if (text.length > 0) return { ok: true, data: text.join("\n\n") };
+
+  const html = bodiesFor(parts, htmlIndexes?.length ? htmlIndexes : textIndexes, "Html");
+  if (html.length > 0) return { ok: true, data: htmlToText(html.join("\n")) };
+
+  return { ok: true, data: "" };
+}
+
+/** Drop tags from an HTML-only part so read_email still returns text. */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/gi, "'")
+    // Last, so an escaped entity (`&amp;lt;`) stays literal text.
+    .replace(/&amp;/gi, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+/** A decoded body field. Number arrays are part indexes, not text. */
+function stringList(value: unknown): string[] | undefined {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string")) {
+    return value;
+  }
+  return undefined;
+}
+
+/**
+ * Part indexes for a body field. An empty list means the message has no
+ * such body, so callers must not fall back to scanning every part (that
+ * would return an attachment). Only a missing field scans all parts.
+ */
+function indexList(value: unknown): number[] | undefined {
+  if (Array.isArray(value) && value.every((item) => typeof item === "number")) {
+    return value;
+  }
+  return undefined;
+}
+
+function bodiesFor(parts: unknown[], indexes: number[] | undefined, variant: "Text" | "Html"): string[] {
+  const chosen = indexes ? indexes.map((index) => parts[index]).filter((part) => part !== undefined) : parts;
+  const found: string[] = [];
+  for (const part of chosen) collectBodies(part, variant, found);
+  return found;
+}
+
+function collectBodies(part: unknown, variant: "Text" | "Html", found: string[]): void {
+  const record = asRecord(part);
+  const body = asRecord(record?.body);
+  if (!body) return;
+
+  const direct = body[variant];
+  if (typeof direct === "string" && direct.length > 0) found.push(direct);
+
+  if (Array.isArray(body.Multipart)) {
+    for (const child of body.Multipart) collectBodies(child, variant, found);
+  }
+
+  const nested = asRecord(body.Message);
+  if (nested && Array.isArray(nested.parts)) {
+    for (const child of nested.parts) collectBodies(child, variant, found);
   }
 }

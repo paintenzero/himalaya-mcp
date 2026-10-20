@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 
 - **Move, flag, and read-by-id now pass the mailbox himalaya v2 actually reads.** `move_email` sends the destination as `--to` and the source as `--from` (a positional folder was parsed as a message id, and `--mailbox` is not a move flag). Flag changes use repeated `--flag`. Reads pass `--mailbox` even for INBOX, so an id is not fetched from the inbox alias. `read_email_raw` on v2 uses `message read --raw` and passes that same mailbox.
+- **`read_email` reads the body out of himalaya 2.2's parsed message.** `message read --json` returns `{parts, text_body, html_body}`, where the body lists are part indexes, not the text. The tool was handing that object back as the message. It now returns the `Text` part, or the HTML part with tags removed when the message has no plain part. `read_email_html` and `render_email` use the same payload, because v2 has no `message export`.
 
 ### Added
 
