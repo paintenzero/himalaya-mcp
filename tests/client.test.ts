@@ -340,6 +340,57 @@ describe("HimalayaClient", () => {
       expect(argv).toEqual(["message", "read", "--mailbox", "INBOX", "--json", "12345"]);
     });
 
+    it("replyTemplate on v2 uses message reply and keeps the raw RFC 5322 draft", async () => {
+      setupMock("From: me@example.com\nIn-Reply-To: <a@b>\n\nHi\n");
+      const client = new HimalayaClient();
+      const draft = await client.replyTemplate("42", "Thanks", false, "INBOX");
+
+      expect(draft).toContain("In-Reply-To");
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[])[0] === "message")![1] as string[];
+      expect(argv).toEqual([
+        "message", "reply", "--no-save", "--mailbox", "INBOX", "--body", "Thanks", "42",
+      ]);
+      expect(argv).not.toContain("--json");
+      expect(argv).not.toContain("--all");
+      expect(argv).not.toContain("template");
+    });
+
+    it("replyTemplate on v2 reply-all copies source To and Cc onto --cc", async () => {
+      const source = JSON.stringify({
+        parts: [{
+          headers: [
+            { name: "from", value: { Address: { List: [{ name: "Ada", address: "ada@example.com" }] } } },
+            { name: "to", value: { Address: { List: [{ name: "Me", address: "me@example.com" }] } } },
+            { name: "cc", value: { Address: { List: [
+              { name: "Lifanov", address: "lifanov@example.com" },
+              { name: "Basil", address: "basil@example.com" },
+            ] } } },
+          ],
+        }],
+      });
+      setupMock(source);
+      const client = new HimalayaClient({ from: "me@example.com" });
+      await client.replyTemplate("42", "Thanks", true, "INBOX");
+
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[]).includes("reply"))![1] as string[];
+      expect(argv).toEqual([
+        "message", "reply", "--no-save", "--mailbox", "INBOX",
+        "--cc", "lifanov@example.com", "--cc", "basil@example.com",
+        "--body", "Thanks", "42",
+      ]);
+    });
+
+    it("replyTemplate on v1 keeps template reply --all", async () => {
+      configureMock({ version: V1_VERSION_STDOUT, stdout: "\"draft\"" });
+      const client = new HimalayaClient();
+      await client.replyTemplate("42", "Thanks", true, "INBOX");
+
+      const argv = mockExecFileAsync.mock.calls.find((c) => (c[1] as string[])[0] === "template")![1] as string[];
+      expect(argv).toEqual([
+        "template", "reply", "--folder", "INBOX", "--all", "42", "--output", "json", "Thanks",
+      ]);
+    });
+
     it("readMessage keeps a folder that only casefolds to INBOX", async () => {
       setupMock('""');
       const client = new HimalayaClient();
@@ -408,7 +459,7 @@ describe("HimalayaClient", () => {
   });
 
   describe("sendTemplate dual-syntax (spawn path, not exec())", () => {
-    it("passes --json flag on himalaya v2", async () => {
+    it("passes message send --json on himalaya v2", async () => {
       configureMock({ version: V2_VERSION_STDOUT });
       mockSpawn.mockImplementation(() => fakeChildProcess(0, "ok"));
       const client = new HimalayaClient();
@@ -417,11 +468,19 @@ describe("HimalayaClient", () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         "himalaya",
-        expect.arrayContaining(["template", "send", "--json"]),
+        ["message", "send", "--json"],
         expect.any(Object),
       );
       const spawnArgs = mockSpawn.mock.calls[0][1] as string[];
+      expect(spawnArgs).not.toContain("template");
       expect(spawnArgs).not.toContain("--output");
+    });
+
+    it("refuses MML attachments on himalaya v2 send", async () => {
+      configureMock({ version: V2_VERSION_STDOUT });
+      const client = new HimalayaClient();
+      await expect(client.sendTemplate("From: a@b.com\n\nhi\n<#part type=text/plain filename=\"/tmp/a.txt\">\n<#/part>")).rejects.toThrow(/does not expand MML/);
+      expect(mockSpawn).not.toHaveBeenCalled();
     });
 
     it("passes --output json flag on himalaya v1.x", async () => {

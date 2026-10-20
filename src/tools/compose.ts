@@ -21,12 +21,12 @@ export function registerComposeTools(
   options: ToolAccessOptions = {},
 ) {
   server.registerTool("draft_reply", {
-    description: "Generate a reply draft for an email. Returns the reply template with headers and quoted original message. Does NOT send — use send_email to send after user reviews.",
+    description: "Generate a reply draft for an email. Does NOT send. On himalaya v2 this runs message reply and returns the RFC 5322 message, including In-Reply-To and References, so send_email keeps it in the same thread. Pass folder as the mailbox the message was listed from.",
     inputSchema: {
       id: z.string().describe("Email message ID to reply to"),
-      body: z.string().optional().describe("Custom reply body text (prepended to quoted original)"),
-      reply_all: z.boolean().optional().describe("Reply to all recipients (default: false)"),
-      folder: z.string().optional().describe("Folder name (default: INBOX)"),
+      body: z.string().optional().describe("Custom reply body text (placed above the quoted original)"),
+      reply_all: z.boolean().optional().describe("Reply to all recipients. On himalaya v2 the original To and Cc are copied onto Cc, except your own address and the person already in To."),
+      folder: z.string().optional().describe("Mailbox that holds the message (default: INBOX). Always passed to himalaya."),
       account: z.string().optional().describe("Account name (uses default if omitted)"),
     },
   }, async (args) => {
@@ -57,7 +57,7 @@ export function registerComposeTools(
             "",
             "--- END DRAFT ---",
             "",
-            "Review the draft above. To send, use send_email with the template text and confirm=true.",
+            "Review the draft above. To send it in this thread, use send_email with this template text and confirm=true.",
           ].join("\n"),
         }],
       };
@@ -69,7 +69,7 @@ export function registerComposeTools(
   server.registerTool("send_email", {
     description: "Send an email template. SAFETY: requires confirm=true to actually send. Without confirm, returns a preview. Always show the user the preview and get their approval before sending with confirm=true.",
     inputSchema: {
-      template: z.string().describe("The full email template (MML format with headers and body). Get this from draft_reply output."),
+      template: z.string().describe("The full RFC 5322 message from draft_reply (headers, including In-Reply-To and References, then the body). On himalaya v1 this is an MML template."),
       attachments: z.array(z.string()).optional().describe("Local file paths to attach (e.g. [\"/tmp/report.pdf\"])"),
       confirm: z.boolean().optional().describe("Set to true to actually send. Without this, only shows a preview."),
       account: z.string().optional().describe("Account name (uses default if omitted)"),

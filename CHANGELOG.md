@@ -9,6 +9,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 
 - **Move, flag, and read-by-id now pass the mailbox himalaya v2 actually reads.** `move_email` sends the destination as `--to` and the source as `--from` (a positional folder was parsed as a message id, and `--mailbox` is not a move flag). Flag changes use repeated `--flag`. Reads pass `--mailbox` even for INBOX, so an id is not fetched from the inbox alias. `read_email_raw` on v2 uses `message read --raw` and passes that same mailbox.
+- **Reply in a thread uses `message reply` / `message send`.** himalaya v2 removed `template reply` and `template send`, so `draft_reply` and `send_email` failed before any message was built. A v2 draft is now the RFC 5322 reply (`In-Reply-To`, `References`, `Re:` subject) and sending pipes that text to `message send`. MML `<#part>` attachments are refused on v2 send, because that command does not expand them.
+- **`reply_all` keeps the original recipients on himalaya v2.2.** That CLI has no `--all` flag, so a reply-all draft was addressed only to Reply-To or From and dropped Cc. The source To and Cc are now passed as `--cc`, skipping your address and anyone already in To.
 
 ### Added
 

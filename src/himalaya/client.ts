@@ -12,6 +12,7 @@ import type { HimalayaClientOptions } from "./types.js";
 import { classifyStderr, HimalayaError, unsupportedBackendError } from "./errors.js";
 import { resolveFromAddress } from "./config-toml.js";
 import { detectHimalayaVersion, himalayaAtLeast, type HimalayaVersion } from "./cli-version.js";
+import { replyAllCc } from "./reply-recipients.js";
 import { isImapAccount, listAccounts } from "./accounts.js";
 import { getTrashFolder } from "./trash.js";
 
@@ -152,6 +153,8 @@ export class HimalayaClient {
     cwd?: string;
     /** Positional args appended after all flags (e.g. reply body) */
     trailingArgs?: string[];
+    /** Set false to skip --json / --output json. Reply drafts need the raw message. */
+    json?: boolean;
   }): Promise<string> {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
@@ -179,6 +182,7 @@ export class HimalayaClient {
     timeout?: number;
     cwd?: string;
     trailingArgs?: string[];
+    json?: boolean;
   }): Promise<string> {
     // Version detection failures throw here as a HimalayaError with code
     // "himalaya_version_undetected" (not "transient"), so exec()'s retry
@@ -199,10 +203,14 @@ export class HimalayaClient {
     }
 
     // Output format — himalaya v2 dropped --output in favor of a bare --json flag.
-    if (version.major >= 2) {
-      args.push("--json");
-    } else {
-      args.push("--output", "json");
+    // A reply draft opts out: `message reply --json` returns decoded fields, and
+    // the raw RFC 5322 message is what keeps In-Reply-To and References.
+    if (options?.json !== false) {
+      if (version.major >= 2) {
+        args.push("--json");
+      } else {
+        args.push("--output", "json");
+      }
     }
 
     // Positional args must come after all flags (e.g. reply body)
@@ -408,7 +416,7 @@ export class HimalayaClient {
     return this.exec(args, { folder: f, account, trailingArgs: [id] });
   }
 
-  /** Generate a reply template for a message. */
+  /** Generate a reply template for a message. Does not send. */
   async replyTemplate(
     id: string,
     body?: string,
@@ -417,6 +425,28 @@ export class HimalayaClient {
     account?: string,
   ): Promise<string> {
     assertSafeArg(id, "id");
+    const version = await this.resolveVersion();
+    if (version.major >= 2) {
+      // v2 removed `template reply`. `message reply` fetches the source and
+      // writes an RFC 5322 reply: In-Reply-To, References, and Re: subject.
+      // v2.2 has no --all. Reply-all copies the source To and Cc onto --cc,
+      // which replaces the empty Cc while To stays Reply-To or From.
+      // --no-save keeps the preview from appending a mailbox copy.
+      // --body is required so himalaya does not wait on stdin.
+      const args = ["message", "reply", "--no-save"];
+      const f = await this.applyFolderArg(args, folder);
+      if (replyAll) {
+        const source = await this.readMessage(id, folder, account);
+        for (const addr of replyAllCc(source, this.fromForAccount(account))) {
+          assertSafeArg(addr, "cc");
+          args.push("--cc", addr);
+        }
+      }
+      const text = body ?? "";
+      assertSafeArg(text, "body");
+      args.push("--body", text);
+      return this.exec(args, { folder: f, account, trailingArgs: [id], json: false });
+    }
     const args = ["template", "reply"];
     const f = await this.applyFolderArg(args, folder);
     if (replyAll) {
@@ -447,7 +477,15 @@ export class HimalayaClient {
     }
 
     const version = await this.resolveVersion();
-    const args = version.major >= 2 ? ["template", "send", "--json"] : ["template", "send", "--output", "json"];
+    if (version.major >= 2 && /<#\/?(?:part|multipart)\b/i.test(template)) {
+      throw new Error(
+        "himalaya v2 message send expects an RFC 5322 message and does not expand MML attachments. " +
+        "Remove <#part> blocks before sending.",
+      );
+    }
+    // v2 removed `template send`. `message send` reads the RFC 5322 message
+    // from stdin, so a draft_reply that kept In-Reply-To stays in the thread.
+    const args = version.major >= 2 ? ["message", "send", "--json"] : ["template", "send", "--output", "json"];
     const acct = account || this.opts.account;
     if (acct) {
       assertSafeArg(acct, "account");
